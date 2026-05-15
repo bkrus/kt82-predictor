@@ -148,7 +148,7 @@ export default async function handler(req, res) {
       strava_profile_pic_url: profilePic,
       access_token:          tokenData.access_token,
       refresh_token:         tokenData.refresh_token,
-      token_expires_at:      tokenData.expires_at,
+      token_expires_at:      new Date(tokenData.expires_at * 1000).toISOString(),
     },
     { onConflict: "runner_id" }
   );

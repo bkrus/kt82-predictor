@@ -11,7 +11,7 @@ const supabase = createClient(
 async function getValidToken(runnerId) {
   const { data, error } = await supabase
     .from("strava_tokens")
-    .select("strava_id, access_token, refresh_token, expires_at")
+    .select("runner_strava_id, access_token, refresh_token, token_expires_at")
     .eq("runner_id", runnerId)
     .maybeSingle();
 
@@ -19,7 +19,8 @@ async function getValidToken(runnerId) {
   if (!data)  throw new Error(`Runner ${runnerId} not connected to Strava`);
 
   const nowSeconds = Math.floor(Date.now() / 1000);
-  if (data.expires_at > nowSeconds + 60) {
+  const expiresAtSeconds = Math.floor(new Date(data.token_expires_at).getTime() / 1000);
+  if (expiresAtSeconds > nowSeconds + 60) {
     return data.access_token;
   }
 
@@ -46,10 +47,9 @@ async function getValidToken(runnerId) {
   const { error: updateError } = await supabase
     .from("strava_tokens")
     .update({
-      access_token:  refreshed.access_token,
-      refresh_token: refreshed.refresh_token,
-      expires_at:    refreshed.expires_at,
-      updated_at:    new Date().toISOString(),
+      access_token:     refreshed.access_token,
+      refresh_token:    refreshed.refresh_token,
+      token_expires_at: new Date(refreshed.expires_at * 1000).toISOString(),
     })
     .eq("runner_id", runnerId);
 

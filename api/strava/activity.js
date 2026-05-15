@@ -20,8 +20,8 @@ const supabase = createClient(
 async function getValidTokenForRunner(runnerStravaId) {
   const { data: row, error } = await supabase
     .from("strava_tokens")
-    .select("access_token, refresh_token, expires_at")
-    .eq("strava_id", runnerStravaId)
+    .select("access_token, refresh_token, token_expires_at")
+    .eq("runner_strava_id", runnerStravaId)
     .maybeSingle();
 
   if (error) throw new Error(`DB error looking up runner token: ${error.message}`);
@@ -29,7 +29,8 @@ async function getValidTokenForRunner(runnerStravaId) {
   if (!row.refresh_token) throw new Error("Token expired, reconnect needed");
 
   const nowSeconds = Math.floor(Date.now() / 1000);
-  if (row.expires_at > nowSeconds + 60) {
+  const expiresAtSeconds = Math.floor(new Date(row.token_expires_at).getTime() / 1000);
+  if (expiresAtSeconds > nowSeconds + 60) {
     return row.access_token;
   }
 
@@ -60,12 +61,11 @@ async function getValidTokenForRunner(runnerStravaId) {
   const { error: updateError } = await supabase
     .from("strava_tokens")
     .update({
-      access_token: refreshed.access_token,
-      refresh_token: refreshed.refresh_token,
-      expires_at: refreshed.expires_at,
-      updated_at: new Date().toISOString(),
+      access_token:    refreshed.access_token,
+      refresh_token:   refreshed.refresh_token,
+      token_expires_at: new Date(refreshed.expires_at * 1000).toISOString(),
     })
-    .eq("strava_id", runnerStravaId);
+    .eq("runner_strava_id", runnerStravaId);
 
   if (updateError) {
     console.warn(`[activity] Token refresh DB write failed for ${runnerStravaId}:`, updateError.message);
