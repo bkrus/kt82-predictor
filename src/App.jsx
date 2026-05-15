@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 
 const defaultRunners = [
   { id: "r1", name: "Runner 1", pace: "9:30" },
@@ -12,23 +12,23 @@ const defaultRunners = [
 
 const defaultLegs = [
   { id: 1,  name: "Aquaport to Lakehouse Bar & Grill",              distance: 5.10, runnerId: "r1", rating: "Medium",       factor: 1.03, pace: "" },
-  { id: 2,  name: "Lakehouse Bar & Grill to 364 Access",            distance: 3.90, runnerId: "r2", rating: "Easy",         factor: 1.0,  pace: "" },
+  { id: 2,  name: "Lakehouse Bar & Grill to 364 Access",            distance: 3.93, runnerId: "r2", rating: "Easy",         factor: 1.0,  pace: "" },
   { id: 3,  name: "364 Access to Greens Bottom Rd",                 distance: 3.20, runnerId: "r3", rating: "Single Track", factor: 1.12, pace: "" },
   { id: 4,  name: "Greens Bottom Rd to Missouri Research Park",     distance: 7.24, runnerId: "r4", rating: "Difficult",    factor: 1.08, pace: "" },
   { id: 5,  name: "MO Research Park to Lewis & Clark TH",           distance: 4.72, runnerId: "r5", rating: "Medium",       factor: 1.03, pace: "" },
   { id: 6,  name: "Lewis and Clark TH to Weldon Spring TH",         distance: 5.89, runnerId: "r6", rating: "Difficult",    factor: 1.08, pace: "" },
   { id: 7,  name: "Weldon Spring TH to Weldon Spring Conservation", distance: 5.73, runnerId: "r1", rating: "Medium",       factor: 1.03, pace: "" },
   { id: 8,  name: "Weldon Spring Conservation to Matson",           distance: 4.43, runnerId: "r2", rating: "Easy",         factor: 1.0,  pace: "" },
-  { id: 9,  name: "Matson to Klondike Park",                        distance: 3.20, runnerId: "r3", rating: "Single Track", factor: 1.12, pace: "" },
-  { id: 10, name: "Klondike Park to Augusta",                       distance: 3.17, runnerId: "r4", rating: "Easy",         factor: 1.0,  pace: "" },
+  { id: 9,  name: "Matson to Klondike Park",                        distance: 3.61, runnerId: "r3", rating: "Easy",         factor: 1.12, pace: "" },
+  { id: 10, name: "Klondike Park to Augusta",                       distance: 2.58, runnerId: "r4", rating: "Easy",         factor: 1.0,  pace: "" },
   { id: 11, name: "Augusta to Dutzow",                              distance: 7.56, runnerId: "r5", rating: "Difficult",    factor: 1.08, pace: "" },
-  { id: 12, name: "Dutzow to Marthasville",                         distance: 3.78, runnerId: "r6", rating: "Medium",       factor: 1.03, pace: "" },
+  { id: 12, name: "Dutzow to Marthasville",                         distance: 3.67, runnerId: "r6", rating: "Medium",       factor: 1.03, pace: "" },
   { id: 13, name: "Marthasville to Treloar",                        distance: 6.96, runnerId: "r1", rating: "Difficult",    factor: 1.08, pace: "" },
   { id: 14, name: "Treloar to Bernheimer Rd",                       distance: 4.17, runnerId: "r2", rating: "Easy",         factor: 1.0,  pace: "" },
   { id: 15, name: "Bernheimer Rd to Gore-Case Comm Ctr",            distance: 6.14, runnerId: "r3", rating: "Medium",       factor: 1.03, pace: "" },
   { id: 16, name: "Gore-Case Comm Ctr to Case Road",                distance: 2.69, runnerId: "r4", rating: "Single Track", factor: 1.12, pace: "" },
-  { id: 17, name: "Case Road to McKittrick",                        distance: 3.90, runnerId: "r5", rating: "Easy",         factor: 1.0,  pace: "" },
-  { id: 18, name: "McKittrick to Hermann!",                         distance: 2.60, runnerId: "r6", rating: "Medium",       factor: 1.03, pace: "" },
+  { id: 17, name: "Case Road to McKittrick",                        distance: 3.89, runnerId: "r5", rating: "Easy",         factor: 1.0,  pace: "" },
+  { id: 18, name: "McKittrick to Hermann!",                         distance: 2.55, runnerId: "r6", rating: "Medium",       factor: 1.03, pace: "" },
 ];
 
 // ─── Utilities ───────────────────────────────────────────────────
@@ -309,6 +309,8 @@ const GLOBAL_CSS = `
     .kt82-leg-controls { flex-direction: column !important; gap: 10px !important; }
     .kt82-runner-row { grid-template-columns: 28px 1fr auto !important; }
   }
+  .kt82-strava-connect { transition: background 0.15s, border-color 0.15s; }
+  .kt82-strava-connect:hover { background: rgba(252,76,2,0.13) !important; border-color: rgba(252,76,2,0.38) !important; }
 `;
 
 // ─── Styles ──────────────────────────────────────────────────────
@@ -497,6 +499,9 @@ export default function App() {
   const [resetConfirm, setResetConfirm] = useState(null); // 'runners' | 'legs'
   const [deleteBlocked, setDeleteBlocked] = useState(null); // { id, legIds }
   const [mode, setMode] = useState("predictor"); // "predictor" | "race"
+  const [stravaConnections, setStravaConnections] = useState({}); // { [runnerId]: { name, profile_pic } }
+  const [stravaToast, setStravaToast] = useState(null); // { type: "success"|"warning"|"error", message }
+  const [stravaExpanded, setStravaExpanded] = useState(true);
 
   const isMobileDevice = useRef(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
   const [nameEditModal, setNameEditModal] = useState(null); // { runnerId, runnerIndex, value }
@@ -564,6 +569,45 @@ export default function App() {
       .subscribe();
     return () => supabase.removeChannel(ch);
   }, []);
+
+  const fetchStravaConnections = useCallback(async () => {
+    try {
+      const res = await fetch("/api/strava/connections");
+      if (!res.ok) return;
+      const { connections } = await res.json();
+      const map = {};
+      for (const c of connections) map[c.runner_id] = c;
+      setStravaConnections(map);
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchStravaConnections(); }, [fetchStravaConnections]);
+
+  // Handle post-OAuth redirect: /?strava=connected&runner=r1
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("strava");
+    if (!status) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    const runnerParam = params.get("runner");
+    const runnerName = runners.find((r) => r.id === runnerParam)?.name ?? runnerParam ?? "";
+    if (status === "connected") {
+      setStravaToast({ type: "success", message: `Strava connected${runnerName ? ` for ${runnerName}` : ""}!` });
+      fetchStravaConnections();
+    } else if (status === "denied") {
+      setStravaToast({ type: "warning", message: "Strava connection was cancelled." });
+    } else {
+      const reason = params.get("reason");
+      setStravaToast({ type: "error", message: `Strava connection failed${reason ? ` (${reason})` : ""}. Please try again.` });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-dismiss toast after 5 s
+  useEffect(() => {
+    if (!stravaToast) return;
+    const t = setTimeout(() => setStravaToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [stravaToast]);
 
   const runnerMap = useMemo(() => Object.fromEntries(runners.map((r) => [r.id, r])), [runners]);
   const legRefs = useRef({});
@@ -800,6 +844,60 @@ export default function App() {
           </div>
         )}
 
+        {/* ── Strava Connections (race tab) ── */}
+        {mode === "race" && (
+          <div style={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, marginBottom: 12, overflow: "hidden" }}>
+            <div
+              className="kt82-section-header"
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 18px", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none" }}
+              onClick={() => setStravaExpanded(!stravaExpanded)}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "#475569", fontFamily: "'Archivo', system-ui, sans-serif" }}>
+                  Strava Connections
+                </span>
+                <span style={{ fontSize: 11, color: "#334155" }}>
+                  {Object.keys(stravaConnections).length}/{runners.length} connected
+                </span>
+              </div>
+              <Chevron open={stravaExpanded} />
+            </div>
+            {stravaExpanded && (
+              <div style={{ padding: "4px 18px 16px", display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {runners.map((r) => {
+                  const conn = stravaConnections[r.id];
+                  return (
+                    <div
+                      key={r.id}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "7px 12px 7px 8px",
+                        background: conn ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${conn ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.06)"}`,
+                        borderRadius: 999,
+                      }}
+                    >
+                      {conn?.profile_pic
+                        ? <img src={conn.profile_pic} alt="" style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                        : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.07)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#475569", flexShrink: 0 }}>
+                            {(r.name[0] ?? "?").toUpperCase()}
+                          </span>
+                      }
+                      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: conn ? "#d1fae5" : "#64748b", lineHeight: 1.2, whiteSpace: "nowrap" }}>{r.name}</span>
+                        {conn
+                          ? <span style={{ fontSize: 10, color: "#4ade80", fontWeight: 600 }}>Connected</span>
+                          : <a href={`/api/strava/auth?runnerId=${r.id}`} style={{ fontSize: 10, color: "#FC4C02", textDecoration: "none", fontWeight: 600 }}>Connect →</a>
+                        }
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Runners ── */}
         <div style={S.sectionCard}>
           <div className="kt82-section-header" style={S.sectionHeader} onClick={() => setRunnersExpanded(!runnersExpanded)}>
@@ -854,6 +952,25 @@ export default function App() {
                           onClick={isMobileDevice.current ? () => setNameEditModal({ runnerId: r.id, runnerIndex: i, value: r.name }) : undefined}
                         />
                         {!r.name.trim() && <span style={S.fieldError}>Name cannot be blank</span>}
+                        <div style={{ marginTop: 5 }}>
+                          {stravaConnections[r.id] ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#166534", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.22)", borderRadius: 999, padding: "2px 8px 2px 5px" }}>
+                              {stravaConnections[r.id].profile_pic
+                                ? <img src={stravaConnections[r.id].profile_pic} alt="" style={{ width: 14, height: 14, borderRadius: "50%", objectFit: "cover" }} />
+                                : <span style={{ fontSize: 9, color: "#22c55e" }}>●</span>
+                              }
+                              <span>Strava connected</span>
+                            </span>
+                          ) : (
+                            <a
+                              href={`/api/strava/auth?runnerId=${r.id}`}
+                              className="kt82-strava-connect"
+                              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#c2410c", background: "rgba(252,76,2,0.07)", border: "1px solid rgba(252,76,2,0.2)", borderRadius: 999, padding: "2px 8px", textDecoration: "none" }}
+                            >
+                              Connect Strava
+                            </a>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <PaceInput
@@ -1061,6 +1178,29 @@ export default function App() {
         </div>
 
       </div>
+    {stravaToast && (
+      <div
+        style={{
+          position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)",
+          zIndex: 10001, display: "flex", alignItems: "center", gap: 10,
+          padding: "12px 14px 12px 16px", borderRadius: 10,
+          boxShadow: "0 8px 30px rgba(0,0,0,0.22)",
+          background:
+            stravaToast.type === "success" ? "#166534" :
+            stravaToast.type === "warning" ? "#92400e" : "#991b1b",
+          color: "#fff", fontSize: 13, fontWeight: 600,
+          maxWidth: "90vw", whiteSpace: "nowrap",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+        }}
+      >
+        <span>{stravaToast.message}</span>
+        <button
+          type="button"
+          onClick={() => setStravaToast(null)}
+          style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 18, padding: "0 2px", lineHeight: 1 }}
+        >×</button>
+      </div>
+    )}
     {nameEditModal && (
       <RunnerNameModal
         runnerIndex={nameEditModal.runnerIndex}
