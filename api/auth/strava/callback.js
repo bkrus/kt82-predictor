@@ -158,6 +158,41 @@ export default async function handler(req, res) {
     return redirectWithStatus(res, "error", { reason: "db", runner: runnerId });
   }
 
+  // ── 6. Sync athlete name into team_plan.runners ───────────────
+  //
+  // team_plan.runners is a JSONB array of { id, name, pace }.
+  // Fetch → patch the matching element in JS → write back.
+  // Non-fatal: a failure here doesn't break the OAuth flow.
+
+  try {
+    const { data: plan, error: planReadError } = await supabase
+      .from("team_plan")
+      .select("runners")
+      .eq("id", "default")
+      .single();
+
+    if (planReadError) throw planReadError;
+
+    if (Array.isArray(plan?.runners)) {
+      const updatedRunners = plan.runners.map((r) =>
+        r.id === runnerId ? { ...r, name } : r
+      );
+
+      const { error: planWriteError } = await supabase
+        .from("team_plan")
+        .update({ runners: updatedRunners })
+        .eq("id", "default");
+
+      if (planWriteError) throw planWriteError;
+
+      console.info(
+        `[strava/callback] team_plan runner ${runnerId} renamed to "${name}"`
+      );
+    }
+  } catch (err) {
+    console.warn("[strava/callback] Could not sync name to team_plan:", err.message);
+  }
+
   console.info(
     `[strava/callback] Runner ${runnerId} connected — Strava athlete ${stravaId} (${name})`
   );
