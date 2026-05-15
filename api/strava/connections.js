@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   const { data, error } = await supabase
     .from("strava_tokens")
-    .select("runner_id, name, profile_pic");
+    .select("runner_id, runner_name, runner_strava_id, strava_profile_pic_url");
 
   if (error) {
     console.error("[connections] DB error:", error.message);

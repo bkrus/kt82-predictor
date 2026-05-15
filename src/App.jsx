@@ -499,7 +499,7 @@ export default function App() {
   const [resetConfirm, setResetConfirm] = useState(null); // 'runners' | 'legs'
   const [deleteBlocked, setDeleteBlocked] = useState(null); // { id, legIds }
   const [mode, setMode] = useState("predictor"); // "predictor" | "race"
-  const [stravaConnections, setStravaConnections] = useState({}); // { [runnerId]: { name, profile_pic } }
+  const [stravaConnections, setStravaConnections] = useState({}); // { [runnerId]: { runner_name, strava_profile_pic_url } }
   const [stravaToast, setStravaToast] = useState(null); // { type: "success"|"warning"|"error", message }
   const [stravaExpanded, setStravaExpanded] = useState(true);
 
@@ -877,8 +877,8 @@ export default function App() {
                         borderRadius: 999,
                       }}
                     >
-                      {conn?.profile_pic
-                        ? <img src={conn.profile_pic} alt="" style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                      {conn?.strava_profile_pic_url
+                        ? <img src={conn.strava_profile_pic_url} alt="" style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
                         : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.07)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#475569", flexShrink: 0 }}>
                             {(r.name[0] ?? "?").toUpperCase()}
                           </span>
@@ -955,8 +955,8 @@ export default function App() {
                         <div style={{ marginTop: 5 }}>
                           {stravaConnections[r.id] ? (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#166534", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.22)", borderRadius: 999, padding: "2px 8px 2px 5px" }}>
-                              {stravaConnections[r.id].profile_pic
-                                ? <img src={stravaConnections[r.id].profile_pic} alt="" style={{ width: 14, height: 14, borderRadius: "50%", objectFit: "cover" }} />
+                              {stravaConnections[r.id].strava_profile_pic_url
+                                ? <img src={stravaConnections[r.id].strava_profile_pic_url} alt="" style={{ width: 14, height: 14, borderRadius: "50%", objectFit: "cover" }} />
                                 : <span style={{ fontSize: 9, color: "#22c55e" }}>●</span>
                               }
                               <span>Strava connected</span>

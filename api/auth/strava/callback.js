@@ -119,7 +119,7 @@ export default async function handler(req, res) {
   const { data: existing, error: lookupError } = await supabase
     .from("strava_tokens")
     .select("runner_id")
-    .eq("strava_id", stravaId)
+    .eq("runner_strava_id", stravaId)
     .maybeSingle();
 
   if (lookupError) {
@@ -142,14 +142,13 @@ export default async function handler(req, res) {
 
   const { error: dbError } = await supabase.from("strava_tokens").upsert(
     {
-      runner_id: runnerId,
-      strava_id: stravaId,
-      name,
-      profile_pic: profilePic,
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
-      expires_at: tokenData.expires_at,
-      updated_at: new Date().toISOString(),
+      runner_id:             runnerId,
+      runner_strava_id:      stravaId,
+      runner_name:           name,
+      strava_profile_pic_url: profilePic,
+      access_token:          tokenData.access_token,
+      refresh_token:         tokenData.refresh_token,
+      token_expires_at:      tokenData.expires_at,
     },
     { onConflict: "runner_id" }
   );
