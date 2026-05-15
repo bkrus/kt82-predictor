@@ -311,6 +311,8 @@ const GLOBAL_CSS = `
   }
   .kt82-strava-connect { transition: background 0.15s, border-color 0.15s; }
   .kt82-strava-connect:hover { background: rgba(252,76,2,0.13) !important; border-color: rgba(252,76,2,0.38) !important; }
+  .kt82-strava-disconnect { opacity: 0.45; transition: opacity 0.15s, color 0.15s; }
+  .kt82-strava-disconnect:hover { opacity: 1 !important; color: #dc2626 !important; }
 `;
 
 // ─── Styles ──────────────────────────────────────────────────────
@@ -502,6 +504,7 @@ export default function App() {
   const [stravaConnections, setStravaConnections] = useState({}); // { [runnerId]: { runner_name, strava_profile_pic_url } }
   const [stravaToast, setStravaToast] = useState(null); // { type: "success"|"warning"|"error", message }
   const [stravaExpanded, setStravaExpanded] = useState(true);
+  const [stravaDisconnecting, setStravaDisconnecting] = useState(new Set());
 
   const isMobileDevice = useRef(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
   const [nameEditModal, setNameEditModal] = useState(null); // { runnerId, runnerIndex, value }
@@ -568,6 +571,33 @@ export default function App() {
       })
       .subscribe();
     return () => supabase.removeChannel(ch);
+  }, []);
+
+  const handleStravaDisconnect = useCallback(async (runnerId, athleteName) => {
+    if (!window.confirm(`Disconnect ${athleteName} from Strava?`)) return;
+
+    setStravaDisconnecting((prev) => new Set(prev).add(runnerId));
+    try {
+      const res = await fetch("/api/strava/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runnerId }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || "Disconnect failed");
+      }
+      setStravaConnections((prev) => {
+        const next = { ...prev };
+        delete next[runnerId];
+        return next;
+      });
+      setStravaToast({ type: "success", message: `${athleteName} disconnected from Strava.` });
+    } catch (err) {
+      setStravaToast({ type: "error", message: `Could not disconnect: ${err.message}` });
+    } finally {
+      setStravaDisconnecting((prev) => { const next = new Set(prev); next.delete(runnerId); return next; });
+    }
   }, []);
 
   const fetchStravaConnections = useCallback(async () => {
@@ -884,11 +914,26 @@ export default function App() {
                           </span>
                       }
                       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: conn ? "#d1fae5" : "#64748b", lineHeight: 1.2, whiteSpace: "nowrap" }}>{r.name}</span>
-                        {conn
-                          ? <span style={{ fontSize: 10, color: "#4ade80", fontWeight: 600 }}>Connected</span>
-                          : <a href={`/api/strava/auth?runnerId=${r.id}`} style={{ fontSize: 10, color: "#FC4C02", textDecoration: "none", fontWeight: 600 }}>Connect →</a>
-                        }
+                        <span style={{ fontSize: 12, fontWeight: 600, color: conn ? "#d1fae5" : "#64748b", lineHeight: 1.2, whiteSpace: "nowrap" }}>
+                          {conn ? conn.runner_name : r.name}
+                        </span>
+                        {conn ? (
+                          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ fontSize: 10, color: "#94a3b8" }}>{r.name}</span>
+                            <button
+                              type="button"
+                              className="kt82-strava-disconnect"
+                              onClick={() => handleStravaDisconnect(r.id, conn.runner_name)}
+                              disabled={stravaDisconnecting.has(r.id)}
+                              title="Disconnect Strava"
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 12, lineHeight: 1, padding: "0 2px", borderRadius: 3 }}
+                            >
+                              {stravaDisconnecting.has(r.id) ? "…" : "×"}
+                            </button>
+                          </span>
+                        ) : (
+                          <a href={`/api/strava/auth?runnerId=${r.id}`} style={{ fontSize: 10, color: "#FC4C02", textDecoration: "none", fontWeight: 600 }}>Connect →</a>
+                        )}
                       </div>
                     </div>
                   );
@@ -954,12 +999,22 @@ export default function App() {
                         {!r.name.trim() && <span style={S.fieldError}>Name cannot be blank</span>}
                         <div style={{ marginTop: 5 }}>
                           {stravaConnections[r.id] ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#166534", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.22)", borderRadius: 999, padding: "2px 8px 2px 5px" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#166534", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.22)", borderRadius: 999, padding: "2px 4px 2px 5px" }}>
                               {stravaConnections[r.id].strava_profile_pic_url
                                 ? <img src={stravaConnections[r.id].strava_profile_pic_url} alt="" style={{ width: 14, height: 14, borderRadius: "50%", objectFit: "cover" }} />
                                 : <span style={{ fontSize: 9, color: "#22c55e" }}>●</span>
                               }
-                              <span>Strava connected</span>
+                              <span>{stravaConnections[r.id].runner_name}</span>
+                              <button
+                                type="button"
+                                className="kt82-strava-disconnect"
+                                onClick={() => handleStravaDisconnect(r.id, stravaConnections[r.id].runner_name)}
+                                disabled={stravaDisconnecting.has(r.id)}
+                                title="Disconnect Strava"
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", fontSize: 13, lineHeight: 1, padding: "0 3px", borderRadius: 3 }}
+                              >
+                                {stravaDisconnecting.has(r.id) ? "…" : "×"}
+                              </button>
                             </span>
                           ) : (
                             <a
