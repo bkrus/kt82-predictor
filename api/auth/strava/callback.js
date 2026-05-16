@@ -165,9 +165,6 @@ export default async function handler(req, res) {
   // Non-fatal: a failure here doesn't break the OAuth flow.
 
   try {
-    console.log("[strava/callback] runnerId from state:", runnerId);
-    console.log("[strava/callback] athlete name:", name);
-
     const { data: plan, error: planReadError } = await supabase
       .from("team_plan")
       .select("runners")
@@ -176,19 +173,12 @@ export default async function handler(req, res) {
 
     if (planReadError) throw planReadError;
 
-    console.log("[strava/callback] runners before update:", JSON.stringify(plan?.runners));
-
     if (!Array.isArray(plan?.runners)) {
-      console.warn("[strava/callback] plan.runners is not an array:", typeof plan?.runners, plan?.runners);
+      console.warn("[strava/callback] plan.runners is not an array:", typeof plan?.runners);
     } else {
-      const match = plan.runners.find((r) => r.id === runnerId);
-      console.log("[strava/callback] matched runner:", JSON.stringify(match));
-
       const updatedRunners = plan.runners.map((r) =>
         r.id === runnerId ? { ...r, name } : r
       );
-
-      console.log("[strava/callback] runners after update:", JSON.stringify(updatedRunners));
 
       const { error: planWriteError } = await supabase
         .from("team_plan")
