@@ -338,15 +338,19 @@ export default function App() {
   const upsertManualEntry = async (res, editedAt = null) => {
     const { error } = await supabase.from("manual_entries").upsert({
       team_plan_id: "default",
-      leg_number: res.legId,
-      runner_id: res.runnerId,
-      actual_distance: res.distance,
+      leg_id: res.legId,
+      runner_strava_id: res.runnerStravaId,
+      runner_name: res.runnerName,
+      distance_mi: res.distance,
+      pace_min_per_mi: res.actualPace,
+      elapsed_time_s: res.elapsedSeconds,
       start_time: new Date(res.startTime).toISOString(),
       end_time: new Date(res.endTime).toISOString(),
-      elapsed_seconds: res.elapsedSeconds,
-      actual_pace: res.actualPace,
+      completed_at: new Date(res.endTime).toISOString(),
+      source: res.source || "manual",
+      strava_activity_id: res.stravaActivityId || null,
       ...(editedAt ? { edited_at: editedAt } : {}),
-    }, { onConflict: "team_plan_id,leg_number" });
+    }, { onConflict: "team_plan_id,leg_id" });
     if (error) console.error("manual_entries upsert error:", error);
   };
 
@@ -369,14 +373,19 @@ export default function App() {
     const calcLeg = calculatedLegs.find((l) => l.id === manualCurrentLeg);
     if (!calcLeg) return;
     const elapsedSeconds = (now - legStart) / 1000;
+    const runner = runnerMap[calcLeg.runnerId];
+    const stravaConn = stravaConnections[calcLeg.runnerId];
     const result = {
       legId: manualCurrentLeg,
       runnerId: calcLeg.runnerId,
+      runnerName: runner?.name || "Unknown",
+      runnerStravaId: stravaConn?.runner_strava_id || null,
       startTime: legStart,
       endTime: now,
       elapsedSeconds,
       actualPace: elapsedSeconds / 60 / calcLeg.distance,
       distance: calcLeg.distance,
+      source: "manual",
     };
     const newResults = [...manualLegResults, result];
     const isLast = manualCurrentLeg === calculatedLegs.length;
@@ -427,7 +436,7 @@ export default function App() {
       const prev = updated[lastIdx];
       const elapsed = Math.max(1, (newStartMs - prev.startTime) / 1000);
       const editedAt = new Date().toISOString();
-      updated[lastIdx] = { ...prev, endTime: newStartMs, elapsedSeconds: elapsed, actualPace: elapsed / 60 / prev.distance, editedAt };
+      updated[lastIdx] = { ...prev, endTime: newStartMs, elapsedSeconds: elapsed, actualPace: elapsed / 60 / prev.distance, editedAt, runnerStravaId: prev.runnerStravaId || null, runnerName: prev.runnerName || "Unknown" };
       setManualLegResults(updated);
       await Promise.all([
         saveRaceState(manualRaceStatus, manualRaceStartedAt, manualRaceEndedAt, manualCurrentLeg, updated),
@@ -442,12 +451,12 @@ export default function App() {
     if (!r) return;
     const elapsed = Math.max(1, (newEndMs - newStartMs) / 1000);
     const editedAt = new Date().toISOString();
-    updated[resultIndex] = { ...r, startTime: newStartMs, endTime: newEndMs, elapsedSeconds: elapsed, actualPace: elapsed / 60 / r.distance, editedAt };
+    updated[resultIndex] = { ...r, startTime: newStartMs, endTime: newEndMs, elapsedSeconds: elapsed, actualPace: elapsed / 60 / r.distance, editedAt, runnerStravaId: r.runnerStravaId || null, runnerName: r.runnerName || "Unknown" };
     for (let i = resultIndex + 1; i < updated.length; i++) {
       const prevEnd = updated[i - 1].endTime;
       const cur = updated[i];
       const e = Math.max(1, (cur.endTime - prevEnd) / 1000);
-      updated[i] = { ...cur, startTime: prevEnd, elapsedSeconds: e, actualPace: e / 60 / cur.distance, editedAt };
+      updated[i] = { ...cur, startTime: prevEnd, elapsedSeconds: e, actualPace: e / 60 / cur.distance, editedAt, runnerStravaId: cur.runnerStravaId || null, runnerName: cur.runnerName || "Unknown" };
     }
     const newRaceStart = (resultIndex === 0 && r.legId === 1) ? newStartMs : manualRaceStartedAt;
     setManualLegResults(updated);
