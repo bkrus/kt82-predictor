@@ -74,7 +74,11 @@ export default function App() {
         setLegs(Array.isArray(data.legs) && data.legs.length > 0 ? data.legs : defaultLegs);
         setStartTime(data.start_time || "08:00");
         if (["idle","in_progress","completed"].includes(data.race_status)) setManualRaceStatus(data.race_status);
-        if (data.race_started_at) setManualRaceStartedAt(new Date(data.race_started_at).getTime());
+        if (data.race_started_at) {
+          const value = new Date(data.race_started_at).getTime();
+          console.log("[raceStartedAt SET]", { source: "initial_db_load", value, readable: value ? new Date(value).toLocaleString() : null, currentStatus: data.race_status, currentLocal: null, currentLocalReadable: null });
+          setManualRaceStartedAt(value);
+        }
         if (data.race_ended_at) setManualRaceEndedAt(new Date(data.race_ended_at).getTime());
         if (data.current_leg != null) setManualCurrentLeg(data.current_leg);
         if (Array.isArray(data.leg_results)) setManualLegResults(data.leg_results);
@@ -115,7 +119,10 @@ export default function App() {
           if (Array.isArray(d.legs)) setLegs(d.legs);
           if (d.start_time) setStartTime(d.start_time);
           if (d.race_status !== undefined) setManualRaceStatus(d.race_status || "idle");
-          if (d.race_started_at !== undefined) setManualRaceStartedAt(d.race_started_at ? new Date(d.race_started_at).getTime() : null);
+          if (d.race_started_at !== undefined && d.race_status !== "in_progress") {
+            const value = d.race_started_at ? new Date(d.race_started_at).getTime() : null;
+            setManualRaceStartedAt(value);
+          }
           if (d.race_ended_at !== undefined) setManualRaceEndedAt(d.race_ended_at ? new Date(d.race_ended_at).getTime() : null);
           if (d.current_leg != null) setManualCurrentLeg(d.current_leg);
           if (Array.isArray(d.leg_results)) setManualLegResults(d.leg_results);
@@ -242,9 +249,16 @@ export default function App() {
   const manualCurrentRunner = manualCurrentCalcLeg ? runnerMap[manualCurrentCalcLeg.runnerId] : null;
   const manualIsLastLeg = manualCurrentLeg === calculatedLegs.length;
 
-  const manualCountdownMs = manualRaceStatus === "in_progress" && manualLegStart && manualCurrentCalcLeg
-    ? (manualLegStart + manualCurrentCalcLeg.time * 1000) - currentTime.getTime()
-    : null;
+  const manualCountdownMs =
+    manualRaceStatus === "in_progress" &&
+    manualLegStart &&
+    manualCurrentCalcLeg
+      ? Math.max(
+          0,
+          (manualLegStart + manualCurrentCalcLeg.time * 1000) -
+            currentTime.getTime()
+        )
+      : null;
 
   const manualElapsedMs = manualRaceStatus !== "idle" && manualRaceStartedAt
     ? (manualRaceStatus === "completed" && manualRaceEndedAt
@@ -343,7 +357,7 @@ export default function App() {
       runner_name: res.runnerName,
       distance_mi: res.distance,
       pace_min_per_mi: res.actualPace,
-      elapsed_time_s: res.elapsedSeconds,
+      elapsed_time_s: Math.round(res.elapsedSeconds),
       start_time: new Date(res.startTime).toISOString(),
       end_time: new Date(res.endTime).toISOString(),
       completed_at: new Date(res.endTime).toISOString(),
@@ -355,6 +369,7 @@ export default function App() {
   };
 
   const handleStartRace = async () => {
+    if (supabaseSaveTimer.current) { clearTimeout(supabaseSaveTimer.current); supabaseSaveTimer.current = null; }
     const now = Date.now();
     setManualRaceStatus("in_progress");
     setManualRaceStartedAt(now);
@@ -413,6 +428,7 @@ export default function App() {
 
   const handleResetRace = async () => {
     setManualRaceStatus("idle");
+    console.log("[raceStartedAt SET]", { source: "handleResetRace", value: null, readable: null, currentStatus: manualRaceStatus, currentLocal: manualRaceStartedAt, currentLocalReadable: manualRaceStartedAt ? new Date(manualRaceStartedAt).toLocaleString() : null });
     setManualRaceStartedAt(null);
     setManualRaceEndedAt(null);
     setManualCurrentLeg(1);
@@ -424,6 +440,7 @@ export default function App() {
 
   const handleSaveLegEdit = async (resultIndex, newStartMs, newEndMs) => {
     if (resultIndex === -1) {
+      console.log("[raceStartedAt SET]", { source: "handleSaveLegEdit_minus1", value: newStartMs, readable: newStartMs ? new Date(newStartMs).toLocaleString() : null, currentStatus: manualRaceStatus, currentLocal: manualRaceStartedAt, currentLocalReadable: manualRaceStartedAt ? new Date(manualRaceStartedAt).toLocaleString() : null });
       setManualRaceStartedAt(newStartMs);
       await saveRaceState(manualRaceStatus, newStartMs, manualRaceEndedAt, manualCurrentLeg, manualLegResults);
       setLegEditModal(null);
@@ -460,7 +477,10 @@ export default function App() {
     }
     const newRaceStart = (resultIndex === 0 && r.legId === 1) ? newStartMs : manualRaceStartedAt;
     setManualLegResults(updated);
-    if (newRaceStart !== manualRaceStartedAt) setManualRaceStartedAt(newRaceStart);
+    if (newRaceStart !== manualRaceStartedAt) {
+      console.log("[raceStartedAt SET]", { source: "handleSaveLegEdit_leg1_cascade", value: newRaceStart, readable: newRaceStart ? new Date(newRaceStart).toLocaleString() : null, currentStatus: manualRaceStatus, currentLocal: manualRaceStartedAt, currentLocalReadable: manualRaceStartedAt ? new Date(manualRaceStartedAt).toLocaleString() : null });
+      setManualRaceStartedAt(newRaceStart);
+    }
     await Promise.all([
       saveRaceState(manualRaceStatus, newRaceStart, manualRaceEndedAt, manualCurrentLeg, updated),
       // Upsert the directly edited row plus any cascade-shifted rows
