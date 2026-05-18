@@ -1,25 +1,295 @@
+import { useState, useEffect } from "react";
 import { formatTime, formatManualCountdown, formatLocalTime, paceToDisplay } from "../utils";
+
+const AMBER = "#F59E0B";
+const GREEN = "#10B981";
+const RED = "#EF4444";
+const FONT = "'Archivo', system-ui, sans-serif";
+
+// ─── Phase 1: Pre-Race ────────────────────────────────────────────────────────
+
+function PreRaceScreen({ calculatedLegs, runners, teamTime, startTime, onStartRace }) {
+  const h = Math.floor(teamTime / 3600);
+  const m = Math.floor((teamTime % 3600) / 60);
+  const predictedFinish = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+  const [sh, sm] = startTime.split(":").map(Number);
+  const ampm = sh < 12 ? "AM" : "PM";
+  const h12 = sh % 12 || 12;
+  const plannedStart = `${h12}:${String(sm).padStart(2, "0")} ${ampm}`;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 24px", minHeight: "60vh" }}>
+      <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#92400e", background: "#fef3c7", border: `1px solid ${AMBER}`, borderRadius: 999, padding: "4px 14px", marginBottom: 36, fontFamily: FONT }}>
+        ⏱ MANUAL MODE
+      </span>
+
+      <div style={{ textAlign: "center", marginBottom: 44, lineHeight: 1.9 }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", fontFamily: FONT }}>
+          {calculatedLegs.length} Legs · {runners.length} Runners
+        </div>
+        <div style={{ fontSize: 16, color: "#374151" }}>Predicted finish: {predictedFinish}</div>
+        <div style={{ fontSize: 15, color: "#94a3b8" }}>Planned start: {plannedStart}</div>
+      </div>
+
+      <button
+        onClick={onStartRace}
+        style={{ width: "100%", maxWidth: 380, padding: "20px 0", background: GREEN, border: "none", borderRadius: 16, color: "#fff", fontSize: 22, fontWeight: 800, cursor: "pointer", fontFamily: FONT, letterSpacing: "-0.02em", boxShadow: "0 6px 28px rgba(16,185,129,0.40)", transition: "transform 0.1s" }}
+        onPointerDown={e => { e.currentTarget.style.transform = "scale(0.97)"; }}
+        onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
+        onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+      >
+        START RACE
+      </button>
+      <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 12, textAlign: "center" }}>
+        This will record your actual start time
+      </div>
+    </div>
+  );
+}
+
+// ─── Phase 2: Running ─────────────────────────────────────────────────────────
+
+function RunningScreen({
+  currentLeg, currentRunner, currentCalcLeg, isLastLeg,
+  countdownMs, legETAMap, calculatedLegs, runnerMap,
+  showAllUpcoming, onToggleAll,
+  onNextRunner, onAdjustCurrentLegStart,
+  resetConfirm, onResetRace, onSetResetConfirm,
+}) {
+  const isOvertime = countdownMs != null && countdownMs < 0;
+  const exchangeAtMs = legETAMap.get(currentLeg)?.endMs;
+  const upcomingLegs = calculatedLegs.filter(l => l.id > currentLeg);
+  const visibleUpcoming = showAllUpcoming ? upcomingLegs : upcomingLegs.slice(0, 3);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "70vh" }}>
+
+      {/* TOP: amber banner + runner name + countdown */}
+      <div style={{ padding: "16px 20px 20px", background: "rgba(245,158,11,0.05)", borderBottom: "1px solid rgba(245,158,11,0.12)" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", background: "#fef3c7", border: `1px solid ${AMBER}`, borderRadius: 999, padding: "3px 12px", marginBottom: 16 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#92400e", fontFamily: FONT }}>⏱ MANUAL MODE</span>
+        </div>
+
+        <div style={{ fontSize: 28, fontWeight: 900, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
+          {currentRunner?.name ?? "—"}
+        </div>
+        <div style={{ fontSize: 15, color: "#64748b", marginTop: 3, marginBottom: 16, fontWeight: 500 }}>
+          Leg {currentLeg} · {currentCalcLeg?.distance ?? "—"} miles
+        </div>
+
+        <div style={{ fontSize: 72, fontWeight: 900, letterSpacing: "-0.05em", lineHeight: 1, color: isOvertime ? RED : "#0f172a", fontFamily: FONT, fontVariantNumeric: "tabular-nums", marginBottom: 6, textAlign: "center" }}>
+          {countdownMs != null ? formatManualCountdown(countdownMs) : "--:--"}
+        </div>
+        {isOvertime && (
+          <div style={{ textAlign: "center", fontSize: 13, color: RED, fontWeight: 600, marginBottom: 2 }}>Over predicted time</div>
+        )}
+        <div style={{ textAlign: "center", fontSize: 14, color: "#64748b", marginTop: 4 }}>
+          Exchange at {formatLocalTime(exchangeAtMs)}
+        </div>
+      </div>
+
+      {/* MIDDLE: Next Runner button */}
+      <div style={{ padding: "20px 20px 8px" }}>
+        <button
+          onClick={onNextRunner}
+          style={{ width: "100%", padding: "20px 0", background: isLastLeg ? GREEN : AMBER, border: "none", borderRadius: 16, color: "#fff", fontSize: 20, fontWeight: 800, cursor: "pointer", fontFamily: FONT, letterSpacing: "-0.01em", boxShadow: isLastLeg ? "0 4px 20px rgba(16,185,129,0.35)" : "0 4px 20px rgba(245,158,11,0.35)", transition: "transform 0.1s" }}
+          onPointerDown={e => { e.currentTarget.style.transform = "scale(0.97)"; }}
+          onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
+          onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+        >
+          {isLastLeg ? "🏁 FINISH RACE" : "NEXT RUNNER"}
+        </button>
+        <div style={{ textAlign: "center", fontSize: 13, color: "#94a3b8", marginTop: 8 }}>
+          {isLastLeg ? "Records actual finish time" : "Tap when runner exchanges"}
+        </div>
+      </div>
+
+      {/* BOTTOM: upcoming legs */}
+      {upcomingLegs.length > 0 && (
+        <div style={{ padding: "12px 20px 0" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 8, fontFamily: FONT }}>
+            Upcoming
+          </div>
+          {visibleUpcoming.map(leg => {
+            const eta = legETAMap.get(leg.id);
+            const rn = runnerMap[leg.runnerId];
+            return (
+              <div key={leg.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 12px", borderRadius: 10, background: "rgba(0,0,0,0.04)", marginBottom: 5, minHeight: 48 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", width: 42, flexShrink: 0, fontFamily: FONT }}>Leg {leg.id}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rn?.name ?? "—"}</span>
+                <span style={{ fontSize: 13, color: "#64748b", flexShrink: 0 }}>{leg.distance}mi</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", flexShrink: 0 }}>ETA {formatLocalTime(eta?.endMs)}</span>
+              </div>
+            );
+          })}
+          {upcomingLegs.length > 3 && (
+            <button onClick={onToggleAll} style={{ fontSize: 13, color: "#6366f1", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: "4px 0", fontWeight: 600 }}>
+              {showAllUpcoming ? "Show less ↑" : `View all ${upcomingLegs.length} remaining ↓`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Adjust + Reset */}
+      <div style={{ padding: "20px 20px 24px", marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+        <button onClick={onAdjustCurrentLegStart} style={{ fontSize: 12, background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>
+          Adjust start time for this leg ✏️
+        </button>
+        {resetConfirm ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>Reset race?</span>
+            <button onClick={onResetRace} style={{ padding: "6px 14px", background: RED, color: "#fff", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
+            <button onClick={() => onSetResetConfirm(false)} style={{ padding: "6px 14px", background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 7, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          </div>
+        ) : (
+          <button onClick={() => onSetResetConfirm(true)} style={{ fontSize: 12, background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit" }}>
+            ↺ Reset Race
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Phase 3: Exchange ────────────────────────────────────────────────────────
+
+function ExchangeScreen({ data, onContinue }) {
+  const { legNum, runnerName, distance, elapsedSeconds, diff, isLast } = data;
+  const elapsedDisplay = formatTime(Math.round(Math.max(0, elapsedSeconds)));
+  const paceStr = paceToDisplay(Math.max(1, elapsedSeconds), distance);
+  const ahead = diff > 1;
+  const behind = diff < -1;
+  const diffDisplay = formatTime(Math.round(Math.abs(diff)));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 24px", minHeight: "70vh", textAlign: "center" }}>
+      <div style={{ fontSize: 80, lineHeight: 1, marginBottom: 16, color: GREEN }}>✓</div>
+      <div style={{ fontSize: 28, fontWeight: 900, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.02em", marginBottom: 10 }}>
+        {isLast ? "🏁 Race Complete!" : `Leg ${legNum} Complete!`}
+      </div>
+      <div style={{ fontSize: 16, color: "#64748b", marginBottom: 16 }}>
+        {runnerName} · {distance}mi · {elapsedDisplay} · {paceStr}/mi
+      </div>
+      {ahead && <div style={{ fontSize: 16, fontWeight: 700, color: "#16a34a", marginBottom: 32 }}>Ahead by {diffDisplay}</div>}
+      {behind && <div style={{ fontSize: 16, fontWeight: 700, color: RED, marginBottom: 32 }}>Behind by {diffDisplay}</div>}
+      {!ahead && !behind && <div style={{ fontSize: 16, fontWeight: 700, color: "#64748b", marginBottom: 32 }}>On pace!</div>}
+      <button
+        onClick={onContinue}
+        style={{ padding: "14px 36px", background: "#f1f5f9", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: FONT, color: "#374151" }}
+      >
+        Continue →
+      </button>
+    </div>
+  );
+}
+
+// ─── Phase 4: Finish ──────────────────────────────────────────────────────────
+
+function FinishScreen({
+  elapsedDisplay, fastestLeg, slowestLeg, totalElapsedSec, totalDist,
+  legResults, calculatedLegs, runnerMap,
+  onSetLegEditModal,
+  resetConfirm, onResetRace, onSetResetConfirm,
+}) {
+  return (
+    <div style={{ padding: "32px 20px 32px" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: "#374151", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>
+          🏁 Race Complete!
+        </div>
+        <div style={{ fontSize: 56, fontWeight: 900, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1 }}>
+          {elapsedDisplay ?? "--"}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
+        {totalDist > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "rgba(0,0,0,0.04)", borderRadius: 10, minHeight: 48 }}>
+            <span style={{ fontSize: 14, color: "#64748b" }}>Team avg pace</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", fontFamily: FONT }}>{paceToDisplay(totalElapsedSec, totalDist)}/mi</span>
+          </div>
+        )}
+        {fastestLeg && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: 10, minHeight: 48, gap: 8 }}>
+            <span style={{ fontSize: 14, color: "#16a34a", flexShrink: 0 }}>Fastest leg</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", fontFamily: FONT, textAlign: "right" }}>
+              Leg {fastestLeg.legId} · {runnerMap[fastestLeg.runnerId]?.name} · {paceToDisplay(fastestLeg.elapsedSeconds, fastestLeg.distance)}/mi
+            </span>
+          </div>
+        )}
+        {slowestLeg && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 10, minHeight: 48, gap: 8 }}>
+            <span style={{ fontSize: 14, color: "#dc2626", flexShrink: 0 }}>Slowest leg</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", fontFamily: FONT, textAlign: "right" }}>
+              Leg {slowestLeg.legId} · {runnerMap[slowestLeg.runnerId]?.name} · {paceToDisplay(slowestLeg.elapsedSeconds, slowestLeg.distance)}/mi
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 10, fontFamily: FONT }}>All Legs</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {legResults.map((res, ri) => {
+          const cl = calculatedLegs.find(l => l.id === res.legId);
+          const rn = runnerMap[res.runnerId];
+          const diff = (cl?.time ?? 0) - res.elapsedSeconds;
+          return (
+            <div key={res.legId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: "rgba(0,0,0,0.03)", minHeight: 48 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", width: 44, flexShrink: 0 }}>Leg {res.legId}</span>
+              <span style={{ fontSize: 13, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rn?.name ?? "—"}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", flexShrink: 0 }}>{formatTime(Math.round(res.elapsedSeconds))}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: diff >= 0 ? "#16a34a" : RED, flexShrink: 0 }}>
+                {diff >= 0 ? "+" : ""}{formatTime(Math.round(Math.abs(diff)))}
+              </span>
+              <button
+                onClick={() => onSetLegEditModal({ resultIndex: ri, legId: res.legId, legName: cl?.name ?? `Leg ${res.legId}`, distance: res.distance, startMs: res.startTime, endMs: res.endTime })}
+                style={{ fontSize: 11, background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 7px", cursor: "pointer", color: "#64748b", fontFamily: "inherit", flexShrink: 0 }}
+              >✏️</button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 28, textAlign: "center" }}>
+        {resetConfirm ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>Reset race? All data will be lost.</span>
+            <button onClick={onResetRace} style={{ padding: "6px 14px", background: RED, color: "#fff", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
+            <button onClick={() => onSetResetConfirm(false)} style={{ padding: "6px 14px", background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 7, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          </div>
+        ) : (
+          <button onClick={() => onSetResetConfirm(true)} style={{ fontSize: 14, background: "#f1f5f9", border: "none", borderRadius: 8, color: "#374151", cursor: "pointer", fontFamily: "inherit", padding: "10px 20px", fontWeight: 600 }}>
+            ↺ Reset Race
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function ManualRacePanel({
   status,
+  exchangeScreen,
   currentLeg,
   legResults,
   calculatedLegs,
   runnerMap,
   runners,
-  currentTime,
   currentRunner,
   currentCalcLeg,
   isLastLeg,
   countdownMs,
   legETAMap,
   elapsedDisplay,
-  legElapsedDisplay,
-  projectedFinishMs,
   fastestLeg,
   slowestLeg,
   totalElapsedSec,
   totalDist,
+  teamTime,
+  startTime,
   resetConfirm,
   onStartRace,
   onNextRunner,
@@ -27,229 +297,81 @@ export function ManualRacePanel({
   onSetLegEditModal,
   onAdjustCurrentLegStart,
   onSetResetConfirm,
+  onClearExchange,
 }) {
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+
+  useEffect(() => {
+    if (!exchangeScreen) return;
+    const t = setTimeout(onClearExchange, 3000);
+    return () => clearTimeout(t);
+  }, [exchangeScreen, onClearExchange]);
+
+  if (exchangeScreen) {
+    return <ExchangeScreen data={exchangeScreen} onContinue={onClearExchange} />;
+  }
+
+  if (status === "idle") {
+    return (
+      <PreRaceScreen
+        calculatedLegs={calculatedLegs}
+        runners={runners}
+        teamTime={teamTime}
+        startTime={startTime}
+        onStartRace={onStartRace}
+      />
+    );
+  }
+
+  if (status === "in_progress") {
+    return (
+      <RunningScreen
+        currentLeg={currentLeg}
+        currentRunner={currentRunner}
+        currentCalcLeg={currentCalcLeg}
+        isLastLeg={isLastLeg}
+        countdownMs={countdownMs}
+        legETAMap={legETAMap}
+        calculatedLegs={calculatedLegs}
+        runnerMap={runnerMap}
+        showAllUpcoming={showAllUpcoming}
+        onToggleAll={() => setShowAllUpcoming(v => !v)}
+        onNextRunner={onNextRunner}
+        onAdjustCurrentLegStart={onAdjustCurrentLegStart}
+        resetConfirm={resetConfirm}
+        onResetRace={onResetRace}
+        onSetResetConfirm={onSetResetConfirm}
+      />
+    );
+  }
+
+  if (status === "completed") {
+    return (
+      <FinishScreen
+        elapsedDisplay={elapsedDisplay}
+        fastestLeg={fastestLeg}
+        slowestLeg={slowestLeg}
+        totalElapsedSec={totalElapsedSec}
+        totalDist={totalDist}
+        legResults={legResults}
+        calculatedLegs={calculatedLegs}
+        runnerMap={runnerMap}
+        onSetLegEditModal={onSetLegEditModal}
+        resetConfirm={resetConfirm}
+        onResetRace={onResetRace}
+        onSetResetConfirm={onSetResetConfirm}
+      />
+    );
+  }
+
+  // Unknown/stale status — fall back to pre-race view
   return (
-    <>
-      {status !== "idle" && (
-        <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 10, padding: "10px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: "#92400e", fontFamily: "'Archivo', system-ui, sans-serif" }}>⏱ MANUAL MODE</span>
-          <span style={{ fontSize: 12, color: "#b45309", fontWeight: 500 }}>Strava sync disabled — recording actual exchange times</span>
-        </div>
-      )}
-
-      {status === "idle" && (
-        <div style={{ textAlign: "center", padding: "28px 0 16px" }}>
-          <button
-            onClick={onStartRace}
-            style={{ padding: "16px 44px", background: "#f59e0b", border: "none", borderRadius: 14, color: "#fff", fontSize: 18, fontWeight: 800, cursor: "pointer", fontFamily: "'Archivo', system-ui, sans-serif", letterSpacing: "-0.02em", boxShadow: "0 4px 20px rgba(245,158,11,0.35)" }}
-          >
-            Start Race (Manual Mode)
-          </button>
-          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 8 }}>
-            Records actual exchange times · Works without Strava
-          </div>
-        </div>
-      )}
-
-      {status === "in_progress" && (
-        <div style={{ background: "#0f172a", border: "2px solid #f59e0b", borderRadius: 16, marginBottom: 12, overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px", background: "rgba(245,158,11,0.1)", borderBottom: "1px solid rgba(245,158,11,0.2)" }}>
-            <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "#fbbf24", fontFamily: "'Archivo', system-ui, sans-serif" }}>🏃 Race in progress</span>
-            <span style={{ fontSize: 11, color: "#64748b" }}>Leg {currentLeg} of {calculatedLegs.length}</span>
-          </div>
-
-          <div style={{ padding: "20px 20px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#475569", marginBottom: 4, fontFamily: "'Archivo', system-ui, sans-serif" }}>Currently running</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: "#f8fafc", letterSpacing: "-0.03em", fontFamily: "'Archivo', system-ui, sans-serif" }}>{currentRunner?.name ?? "—"}</div>
-                <div style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Leg {currentLeg} · {currentCalcLeg?.distance} mi</div>
-              </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#f59e0b", marginBottom: 6, fontFamily: "'Archivo', system-ui, sans-serif" }}>⏱ Manual Timing</div>
-                <div style={{ fontSize: 48, fontWeight: 900, letterSpacing: "-0.05em", lineHeight: 1, color: countdownMs != null && countdownMs < 0 ? "#ef4444" : "#f8fafc", fontFamily: "'Archivo', system-ui, sans-serif", border: `2px solid ${countdownMs != null && countdownMs < 0 ? "rgba(239,68,68,0.35)" : "rgba(245,158,11,0.3)"}`, borderRadius: 10, padding: "6px 14px", display: "inline-block" }}>
-                  {countdownMs != null ? formatManualCountdown(countdownMs) : "--:--"}
-                </div>
-                {countdownMs != null && countdownMs < 0 && (
-                  <div style={{ fontSize: 10, color: "#ef4444", marginTop: 3, fontWeight: 600 }}>Over predicted time</div>
-                )}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 18 }}>
-              {[
-                { label: "Expected at", val: formatLocalTime(legETAMap.get(currentLeg)?.endMs) },
-                { label: "Current time", val: currentTime.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) },
-                { label: "Total elapsed", val: elapsedDisplay ?? "--" },
-                { label: "Projected finish", val: formatLocalTime(projectedFinishMs) },
-              ].map(({ label, val }) => (
-                <div key={label}>
-                  <div style={{ fontSize: 10, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f8fafc" }}>{val}</div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={onNextRunner}
-              style={{ width: "100%", padding: "16px", borderRadius: 12, border: "none", background: isLastLeg ? "#16a34a" : "#f59e0b", color: "#fff", fontSize: 17, fontWeight: 800, cursor: "pointer", fontFamily: "'Archivo', system-ui, sans-serif", letterSpacing: "-0.02em", marginBottom: 6 }}
-            >
-              {isLastLeg ? "🏁 Finish Race" : "Next Runner →"}
-            </button>
-            <div style={{ fontSize: 11, color: "#475569", textAlign: "center" }}>
-              {isLastLeg ? "Records final exchange time" : "Records actual exchange time"}
-            </div>
-            <div style={{ textAlign: "center", marginTop: 8 }}>
-              <button
-                onClick={onAdjustCurrentLegStart}
-                style={{ fontSize: 11, background: "none", border: "none", color: "#475569", cursor: "pointer", textDecoration: "underline", padding: "4px 8px", fontFamily: "inherit" }}
-              >
-                Adjust ✏️ start time for this leg
-              </button>
-            </div>
-          </div>
-
-          {legResults.length > 0 && (
-            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "12px 20px 16px" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#475569", display: "block", marginBottom: 8, fontFamily: "'Archivo', system-ui, sans-serif" }}>Completed legs</span>
-              {legResults.map((res, ri) => {
-                const cl = calculatedLegs.find((l) => l.id === res.legId);
-                const rn = runnerMap[res.runnerId];
-                const diff = (cl?.time ?? 0) - res.elapsedSeconds;
-                const ahead = diff > 0;
-                return (
-                  <div key={res.legId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.04)", marginBottom: 4, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#475569", width: 44, flexShrink: 0 }}>Leg {res.legId}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8", minWidth: 70, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rn?.name ?? "—"}</span>
-                    <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>{res.distance} mi</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0", flexShrink: 0 }}>{formatTime(Math.round(res.elapsedSeconds))}</span>
-                    <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>{paceToDisplay(res.elapsedSeconds, res.distance)}/mi</span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: ahead ? "#4ade80" : "#f87171", flexShrink: 0 }}>
-                      {ahead ? "+" : "-"}{formatTime(Math.round(Math.abs(diff)))}
-                    </span>
-                    <button
-                      onClick={() => onSetLegEditModal({ resultIndex: ri, legId: res.legId, legName: cl?.name ?? `Leg ${res.legId}`, distance: res.distance, startMs: res.startTime, endMs: res.endTime })}
-                      style={{ fontSize: 11, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 5, padding: "2px 7px", cursor: "pointer", color: "#f59e0b", flexShrink: 0, fontFamily: "inherit" }}
-                    >Edit ✏️</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {currentLeg < calculatedLegs.length && (
-            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "12px 20px 16px" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#475569", display: "block", marginBottom: 8, fontFamily: "'Archivo', system-ui, sans-serif" }}>Upcoming legs</span>
-              {calculatedLegs.filter((l) => l.id > currentLeg).map((leg) => {
-                const eta = legETAMap.get(leg.id);
-                const rn = runnerMap[leg.runnerId];
-                return (
-                  <div key={leg.id} className="kt82-upcoming-row" style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#475569", width: 44, flexShrink: 0 }}>Leg {leg.id}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8", minWidth: 80, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rn?.name ?? "—"}</span>
-                    <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>{leg.distance} mi</span>
-                    <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>{formatTime(Math.round(leg.time))}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", flexShrink: 0 }}>~{formatLocalTime(eta?.endMs)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {status === "completed" && (
-        <div style={{ background: "#0f172a", border: "2px solid #16a34a", borderRadius: 16, marginBottom: 12, overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px", background: "rgba(22,163,74,0.12)", borderBottom: "1px solid rgba(22,163,74,0.2)" }}>
-            <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "#4ade80", fontFamily: "'Archivo', system-ui, sans-serif" }}>🏁 Race Complete!</span>
-            <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700 }}>⏱ Manual Mode</span>
-          </div>
-          <div style={{ padding: "20px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: 10, marginBottom: 20 }}>
-              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "12px 14px" }}>
-                <div style={{ fontSize: 10, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em" }}>Total time</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: "#f8fafc", fontFamily: "'Archivo', system-ui, sans-serif" }}>{elapsedDisplay ?? "--"}</div>
-              </div>
-              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "12px 14px" }}>
-                <div style={{ fontSize: 10, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em" }}>Team avg pace</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: "#f8fafc", fontFamily: "'Archivo', system-ui, sans-serif" }}>{totalDist > 0 ? `${paceToDisplay(totalElapsedSec, totalDist)}/mi` : "--"}</div>
-              </div>
-              {fastestLeg && (
-                <div style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 10, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 10, color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.1em" }}>Fastest leg</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#f8fafc" }}>Leg {fastestLeg.legId}</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>{runnerMap[fastestLeg.runnerId]?.name} · {paceToDisplay(fastestLeg.elapsedSeconds, fastestLeg.distance)}/mi</div>
-                </div>
-              )}
-              {slowestLeg && (
-                <div style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.15)", borderRadius: 10, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 10, color: "#f87171", textTransform: "uppercase", letterSpacing: "0.1em" }}>Slowest leg</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#f8fafc" }}>Leg {slowestLeg.legId}</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>{runnerMap[slowestLeg.runnerId]?.name} · {paceToDisplay(slowestLeg.elapsedSeconds, slowestLeg.distance)}/mi</div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#475569", marginBottom: 8, fontFamily: "'Archivo', system-ui, sans-serif" }}>Runner results</div>
-            {runners.map((runner) => {
-              const rResults = legResults.filter((r) => r.runnerId === runner.id);
-              if (!rResults.length) return null;
-              const rSec = rResults.reduce((s, r) => s + r.elapsedSeconds, 0);
-              const rDist = rResults.reduce((s, r) => s + r.distance, 0);
-              const rPredSec = calculatedLegs.filter((l) => l.runnerId === runner.id && rResults.some((r) => r.legId === l.id)).reduce((s, l) => s + l.time, 0);
-              const diff = rPredSec - rSec;
-              return (
-                <div key={runner.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.04)", marginBottom: 4, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", flex: 1, minWidth: 80 }}>{runner.name}</span>
-                  <span style={{ fontSize: 11, color: "#64748b" }}>{rDist.toFixed(1)} mi</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{formatTime(Math.round(rSec))}</span>
-                  <span style={{ fontSize: 11, color: "#64748b" }}>{paceToDisplay(rSec, rDist)}/mi</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: diff >= 0 ? "#4ade80" : "#f87171" }}>
-                    {diff >= 0 ? `+${formatTime(Math.round(diff))} ahead` : `-${formatTime(Math.round(-diff))} behind`}
-                  </span>
-                </div>
-              );
-            })}
-
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#475569", marginTop: 18, marginBottom: 8, fontFamily: "'Archivo', system-ui, sans-serif" }}>All legs</div>
-            {legResults.map((res, ri) => {
-              const cl = calculatedLegs.find((l) => l.id === res.legId);
-              const rn = runnerMap[res.runnerId];
-              const diff = (cl?.time ?? 0) - res.elapsedSeconds;
-              return (
-                <div key={res.legId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", marginBottom: 3, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#475569", width: 44, flexShrink: 0 }}>Leg {res.legId}</span>
-                  <span style={{ fontSize: 12, color: "#94a3b8", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 60 }}>{rn?.name ?? "—"}</span>
-                  <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>{res.distance} mi</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0", flexShrink: 0 }}>{formatTime(Math.round(res.elapsedSeconds))}</span>
-                  <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>{paceToDisplay(res.elapsedSeconds, res.distance)}/mi</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: diff >= 0 ? "#4ade80" : "#f87171", flexShrink: 0 }}>
-                    {diff >= 0 ? "+" : "-"}{formatTime(Math.round(Math.abs(diff)))}
-                  </span>
-                  <button
-                    onClick={() => onSetLegEditModal({ resultIndex: ri, legId: res.legId, legName: cl?.name ?? `Leg ${res.legId}`, distance: res.distance, startMs: res.startTime, endMs: res.endTime })}
-                    style={{ fontSize: 11, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 5, padding: "2px 7px", cursor: "pointer", color: "#f59e0b", flexShrink: 0, fontFamily: "inherit" }}
-                  >Edit ✏️</button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {status !== "idle" && (
-        <div style={{ marginBottom: 12 }}>
-          {resetConfirm ? (
-            <div style={{ background: "#fff", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600, flex: 1 }}>Reset race? All timing data will be lost.</span>
-              <button onClick={onResetRace} style={{ padding: "6px 14px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
-              <button onClick={() => onSetResetConfirm(false)} style={{ padding: "6px 14px", background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 7, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-            </div>
-          ) : (
-            <button className="kt82-reset-btn" onClick={() => onSetResetConfirm(true)}>↺ Reset Race</button>
-          )}
-        </div>
-      )}
-    </>
+    <PreRaceScreen
+      calculatedLegs={calculatedLegs}
+      runners={runners}
+      teamTime={teamTime}
+      startTime={startTime}
+      onStartRace={onStartRace}
+    />
   );
 }

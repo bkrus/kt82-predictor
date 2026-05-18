@@ -45,6 +45,7 @@ export default function App() {
   const [manualCurrentLeg, setManualCurrentLeg] = useState(1);
   const [manualLegResults, setManualLegResults] = useState([]);
   const [manualResetConfirm, setManualResetConfirm] = useState(false);
+  const [manualExchangeScreen, setManualExchangeScreen] = useState(null); // { legNum, runnerName, distance, elapsedSeconds, diff, isLast }
   const [legEditModal, setLegEditModal] = useState(null); // { resultIndex, legId, legName, distance, startMs, endMs, startOnly? }
 
   const isMobileDevice = useRef(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
@@ -72,7 +73,7 @@ export default function App() {
         setRunners(Array.isArray(data.runners) && data.runners.length > 0 ? data.runners : defaultRunners);
         setLegs(Array.isArray(data.legs) && data.legs.length > 0 ? data.legs : defaultLegs);
         setStartTime(data.start_time || "08:00");
-        if (data.race_status) setManualRaceStatus(data.race_status);
+        if (["idle","in_progress","completed"].includes(data.race_status)) setManualRaceStatus(data.race_status);
         if (data.race_started_at) setManualRaceStartedAt(new Date(data.race_started_at).getTime());
         if (data.race_ended_at) setManualRaceEndedAt(new Date(data.race_ended_at).getTime());
         if (data.current_leg != null) setManualCurrentLeg(data.current_leg);
@@ -334,6 +335,21 @@ export default function App() {
     }
   };
 
+  const upsertManualEntry = async (res, editedAt = null) => {
+    const { error } = await supabase.from("manual_entries").upsert({
+      team_plan_id: "default",
+      leg_number: res.legId,
+      runner_id: res.runnerId,
+      actual_distance: res.distance,
+      start_time: new Date(res.startTime).toISOString(),
+      end_time: new Date(res.endTime).toISOString(),
+      elapsed_seconds: res.elapsedSeconds,
+      actual_pace: res.actualPace,
+      ...(editedAt ? { edited_at: editedAt } : {}),
+    }, { onConflict: "team_plan_id,leg_number" });
+    if (error) console.error("manual_entries upsert error:", error);
+  };
+
   const handleStartRace = async () => {
     const now = Date.now();
     setManualRaceStatus("in_progress");
@@ -367,11 +383,24 @@ export default function App() {
     const newStatus = isLast ? "completed" : "in_progress";
     const newCurrent = isLast ? manualCurrentLeg : manualCurrentLeg + 1;
     const newEndedAt = isLast ? now : null;
+    setManualExchangeScreen({
+      legNum: manualCurrentLeg,
+      runnerName: runnerMap[calcLeg.runnerId]?.name ?? "Runner",
+      distance: calcLeg.distance,
+      elapsedSeconds,
+      diff: calcLeg.time - elapsedSeconds,
+      isLast,
+    });
     setManualLegResults(newResults);
     setManualCurrentLeg(newCurrent);
     if (isLast) { setManualRaceStatus("completed"); setManualRaceEndedAt(now); }
-    await saveRaceState(newStatus, manualRaceStartedAt, newEndedAt, newCurrent, newResults);
+    await Promise.all([
+      saveRaceState(newStatus, manualRaceStartedAt, newEndedAt, newCurrent, newResults),
+      upsertManualEntry(result),
+    ]);
   };
+
+  const handleClearExchange = useCallback(() => setManualExchangeScreen(null), []);
 
   const handleResetRace = async () => {
     setManualRaceStatus("idle");
@@ -380,6 +409,7 @@ export default function App() {
     setManualCurrentLeg(1);
     setManualLegResults([]);
     setManualResetConfirm(false);
+    setManualExchangeScreen(null);
     await saveRaceState("idle", null, null, 1, []);
   };
 
@@ -399,7 +429,10 @@ export default function App() {
       const editedAt = new Date().toISOString();
       updated[lastIdx] = { ...prev, endTime: newStartMs, elapsedSeconds: elapsed, actualPace: elapsed / 60 / prev.distance, editedAt };
       setManualLegResults(updated);
-      await saveRaceState(manualRaceStatus, manualRaceStartedAt, manualRaceEndedAt, manualCurrentLeg, updated);
+      await Promise.all([
+        saveRaceState(manualRaceStatus, manualRaceStartedAt, manualRaceEndedAt, manualCurrentLeg, updated),
+        upsertManualEntry(updated[lastIdx], editedAt),
+      ]);
       setLegEditModal(null);
       setStravaToast({ type: "success", message: `Leg ${manualCurrentLeg} start time adjusted` });
       return;
@@ -419,7 +452,11 @@ export default function App() {
     const newRaceStart = (resultIndex === 0 && r.legId === 1) ? newStartMs : manualRaceStartedAt;
     setManualLegResults(updated);
     if (newRaceStart !== manualRaceStartedAt) setManualRaceStartedAt(newRaceStart);
-    await saveRaceState(manualRaceStatus, newRaceStart, manualRaceEndedAt, manualCurrentLeg, updated);
+    await Promise.all([
+      saveRaceState(manualRaceStatus, newRaceStart, manualRaceEndedAt, manualCurrentLeg, updated),
+      // Upsert the directly edited row plus any cascade-shifted rows
+      ...updated.slice(resultIndex).map((res) => upsertManualEntry(res, editedAt)),
+    ]);
     setLegEditModal(null);
     setStravaToast({ type: "success", message: `Leg ${r.legId} updated` });
   };
@@ -486,125 +523,53 @@ export default function App() {
           </div>
         </div>
 
-        {/* Stats bar */}
-        <div
+        {/* Stats bar — planner only */}
+        {mode === "predictor" && <div
           className="kt82-stats-bar"
-          style={{ ...S.statsBar, gridTemplateColumns: mode === "predictor" ? "repeat(3,1fr)" : "repeat(4,1fr)" }}
+          style={{ ...S.statsBar, gridTemplateColumns: "repeat(3,1fr)" }}
         >
-          {/* Tile 1: Race Start / Actual Start */}
-          <div
-            style={{
-              ...S.statCard,
-              ...(mode === "race" && manualRaceStatus !== "idle"
-                ? { background: "#fef9c3", borderColor: "#fde68a" }
-                : {}),
-            }}
-            className="kt82-stat-card"
-          >
-            {mode === "race" && manualRaceStatus !== "idle" ? (
-              <>
-                <span style={{ ...S.statLabel, color: "#b45309" }}>Actual Start</span>
-                <span style={{ ...S.statValueMd, color: "#92400e" }}>
-                  {manualRaceStartedAt ? formatLocalTime(manualRaceStartedAt) : "—"}
-                </span>
-                <span style={{ fontSize: 10, color: "#d97706", marginTop: 1, fontWeight: 600 }}>locked</span>
-              </>
-            ) : (
-              <>
-                <span style={S.statLabel}>Race start</span>
-                <input type="time" className="kt82-input" style={S.startTimeInput} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-              </>
-            )}
-          </div>
-
-          {/* Tile 2: Current Leg */}
-          {mode === "race" && (
-            <div
-              className={`kt82-stat-card${
-                manualRaceStatus === "in_progress" ? " kt82-current-leg-amber"
-                : manualRaceStatus === "completed" ? ""
-                : currentLeg ? " kt82-current-leg" : ""
-              }`}
-              style={{
-                ...S.statCard,
-                ...(manualRaceStatus === "in_progress"
-                  ? { background: "#fef9c3", borderColor: "#f59e0b", cursor: "pointer" }
-                  : manualRaceStatus === "completed"
-                  ? { background: "#f0fdf4", borderColor: "#86efac" }
-                  : currentLeg ? { background: "#eff6ff", borderColor: "#bfdbfe", cursor: "pointer" } : {}
-                ),
-              }}
-              onClick={
-                manualRaceStatus === "in_progress"
-                  ? () => { const go = () => legRefs.current[manualCurrentLeg]?.scrollIntoView({ behavior: "smooth", block: "start" }); if (!legsExpanded) { setLegsExpanded(true); setTimeout(go, 100); } else go(); }
-                  : currentLeg && manualRaceStatus === "idle" ? scrollToCurrentLeg : undefined
-              }
-            >
-              <span style={S.statLabel}>Current Leg</span>
-              {manualRaceStatus === "in_progress" ? (
-                <>
-                  <span style={{ ...S.statValue, color: "#b45309", fontSize: 18, lineHeight: 1.2 }}>Leg {manualCurrentLeg}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#92400e", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{manualCurrentRunner?.name ?? "—"}</span>
-                  <span style={{ fontSize: 11, color: "#b45309", marginTop: 1 }}>{manualLegElapsedDisplay ?? "0:00"} elapsed</span>
-                </>
-              ) : manualRaceStatus === "completed" ? (
-                <>
-                  <span style={{ ...S.statValue, color: "#16a34a" }}>Finished</span>
-                  <span style={{ fontSize: 11, color: "#4ade80", marginTop: 1 }}>All {calculatedLegs.length} legs done</span>
-                </>
-              ) : (
-                <>
-                  <span style={{ ...S.statValue, color: currentLeg ? "#1d4ed8" : "#0f172a" }}>{currentLeg ? `Leg ${currentLeg.id}` : "—"}</span>
-                  {currentLeg && <span style={{ fontSize: 11, color: "#93c5fd", marginTop: 1 }}>Tap to jump ↓</span>}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Tile 3: Est. Finish / Projected Finish */}
+          {/* Race start input */}
           <div style={S.statCard} className="kt82-stat-card">
-            <span style={S.statLabel}>{mode === "race" && manualRaceStatus !== "idle" ? "Projected Finish" : "Est. finish"}</span>
-            <span style={S.statValueMd}>
-              {mode === "race" && manualRaceStatus !== "idle"
-                ? (manualProjectedFinishMs ? formatLocalTime(manualProjectedFinishMs) : "—")
-                : formatTime12Hour(startSeconds + teamTime)
-              }
-            </span>
+            <span style={S.statLabel}>Race start</span>
+            <input type="time" className="kt82-input" style={S.startTimeInput} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
           </div>
 
-          {/* Tile 4: Total Time / Elapsed Time */}
+          {/* Est. finish */}
           <div style={S.statCard} className="kt82-stat-card">
-            <span style={S.statLabel}>{mode === "race" && manualRaceStatus !== "idle" ? "Elapsed Time" : "Total time"}</span>
-            <span style={S.statValue}>
-              {mode === "race" && manualRaceStatus !== "idle"
-                ? (manualElapsedDisplay ?? "0:00")
-                : formatTime(teamTime)
-              }
-            </span>
+            <span style={S.statLabel}>Est. finish</span>
+            <span style={S.statValueMd}>{formatTime12Hour(startSeconds + teamTime)}</span>
           </div>
-        </div>
+
+          {/* Total time */}
+          <div style={S.statCard} className="kt82-stat-card">
+            <span style={S.statLabel}>Total time</span>
+            <span style={S.statValue}>{formatTime(teamTime)}</span>
+          </div>
+        </div>}
 
         {/* Manual Race Mode UI */}
         {mode === "race" && (
+          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", overflow: "hidden", marginBottom: 16 }}>
           <ManualRacePanel
             status={manualRaceStatus}
+            exchangeScreen={manualExchangeScreen}
             currentLeg={manualCurrentLeg}
             legResults={manualLegResults}
             calculatedLegs={calculatedLegs}
             runnerMap={runnerMap}
             runners={runners}
-            currentTime={currentTime}
             currentRunner={manualCurrentRunner}
             currentCalcLeg={manualCurrentCalcLeg}
             isLastLeg={manualIsLastLeg}
             countdownMs={manualCountdownMs}
             legETAMap={manualLegETAMap}
             elapsedDisplay={manualElapsedDisplay}
-            projectedFinishMs={manualProjectedFinishMs}
             fastestLeg={manualFastestLeg}
             slowestLeg={manualSlowestLeg}
             totalElapsedSec={manualTotalElapsedSec}
             totalDist={manualTotalDist}
+            teamTime={teamTime}
+            startTime={startTime}
             resetConfirm={manualResetConfirm}
             onStartRace={handleStartRace}
             onNextRunner={handleNextRunner}
@@ -612,93 +577,13 @@ export default function App() {
             onSetLegEditModal={setLegEditModal}
             onAdjustCurrentLegStart={handleAdjustCurrentLegStart}
             onSetResetConfirm={setManualResetConfirm}
+            onClearExchange={handleClearExchange}
           />
-        )}
-
-        {/* Predictor Race Dashboard — only when a leg is active and manual race is not running */}
-        {mode === "race" && currentLeg && manualRaceStatus === "idle" && (
-          <PredictorDashboard
-            currentLeg={currentLeg}
-            calculatedLegs={calculatedLegs}
-            runnerMap={runnerMap}
-            nextExchangeLocation={nextExchangeLocation}
-            exchangeETA={exchangeETA}
-            timeToExchange={timeToExchange}
-            upcomingLegs={upcomingLegs}
-            countdownUrgency={countdownUrgency}
-          />
-        )}
-
-        {/* Strava Connections */}
-        {mode === "race" && (
-          <div style={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, marginBottom: 12, overflow: "hidden" }}>
-            <div
-              className="kt82-section-header"
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 18px", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none" }}
-              onClick={() => setStravaExpanded(!stravaExpanded)}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "#475569", fontFamily: "'Archivo', system-ui, sans-serif" }}>
-                  Strava Connections
-                </span>
-                <span style={{ fontSize: 11, color: "#334155" }}>
-                  {Object.keys(stravaConnections).length}/{runners.length} connected
-                </span>
-              </div>
-              <Chevron open={stravaExpanded} />
-            </div>
-            {stravaExpanded && (
-              <div style={{ padding: "4px 18px 16px", display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {runners.map((r) => {
-                  const conn = stravaConnections[r.id];
-                  return (
-                    <div
-                      key={r.id}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 8,
-                        padding: "7px 12px 7px 8px",
-                        background: conn ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.03)",
-                        border: `1px solid ${conn ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.06)"}`,
-                        borderRadius: 999,
-                      }}
-                    >
-                      {conn?.strava_profile_pic_url
-                        ? <img src={conn.strava_profile_pic_url} alt="" style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-                        : <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.07)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#475569", flexShrink: 0 }}>
-                            {(r.name[0] ?? "?").toUpperCase()}
-                          </span>
-                      }
-                      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: conn ? "#d1fae5" : "#64748b", lineHeight: 1.2, whiteSpace: "nowrap" }}>
-                          {conn ? conn.runner_name : r.name}
-                        </span>
-                        {conn ? (
-                          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <span style={{ fontSize: 10, color: "#94a3b8" }}>{r.name}</span>
-                            <button
-                              type="button"
-                              className="kt82-strava-disconnect"
-                              onClick={() => handleStravaDisconnect(r.id, conn.runner_name)}
-                              disabled={stravaDisconnecting.has(r.id)}
-                              title="Disconnect Strava"
-                              style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 12, lineHeight: 1, padding: "0 2px", borderRadius: 3 }}
-                            >
-                              {stravaDisconnecting.has(r.id) ? "…" : "×"}
-                            </button>
-                          </span>
-                        ) : (
-                          <a href={`/api/strava/auth?runnerId=${r.id}`} style={{ fontSize: 10, color: "#FC4C02", textDecoration: "none", fontWeight: 600 }}>Connect →</a>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         )}
 
-        {/* Runners */}
+        {/* Runners — planner only */}
+        {mode === "predictor" && <>
         <div style={S.sectionCard}>
           <div className="kt82-section-header" style={S.sectionHeader} onClick={() => setRunnersExpanded(!runnersExpanded)}>
             <div style={S.sectionHeaderLeft}>
@@ -985,6 +870,7 @@ export default function App() {
             <span style={S.summaryValue}>{formatTime12Hour(startSeconds + teamTime)}</span>
           </div>
         </div>
+        </>}
 
       </div>
 
