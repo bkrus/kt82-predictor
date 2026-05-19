@@ -19,8 +19,9 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { object_type, object_id, aspect_type, athlete, updates, event_time } = req.body ?? {};
-    console.log("Webhook received", { object_type, object_id, aspect_type, athlete_id: athlete?.id, updates });
+    const { object_type, object_id, aspect_type, owner_id, updates, event_time } = req.body ?? {};
+    const athleteId = owner_id;
+    console.log("Webhook received", { object_type, object_id, aspect_type, athlete_id: owner_id, updates });
 
     if (object_type !== "activity") {
       console.log("Not an activity event");
@@ -62,8 +63,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    if (String(athlete?.id) !== String(connection.runner_strava_id)) {
-      console.log(`Athlete mismatch: webhook athlete ${athlete?.id} !== connected athlete ${connection.runner_strava_id}`);
+    if (String(athleteId) !== String(connection.runner_strava_id)) {
+      console.log(`Athlete mismatch: webhook athlete ${athleteId} !== connected athlete ${connection.runner_strava_id}`);
       return res.status(200).json({ ok: true });
     }
 
@@ -76,7 +77,7 @@ export default async function handler(req, res) {
         object_type: "activity",
         aspect_type,
         object_id: String(object_id),
-        owner_id: String(athlete?.id),
+        owner_id: String(athleteId),
         event_time: event_time ? new Date(event_time * 1000).toISOString() : new Date().toISOString(),
         status: "pending",
         received_at: new Date().toISOString(),
