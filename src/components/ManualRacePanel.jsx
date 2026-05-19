@@ -74,9 +74,14 @@ function RunningScreen({
         <div style={{ fontSize: 28, fontWeight: 900, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
           {currentRunner?.name ?? "—"}
         </div>
-        <div style={{ fontSize: 15, color: "#64748b", marginTop: 3, marginBottom: 16, fontWeight: 500 }}>
+        <div style={{ fontSize: 15, color: "#64748b", marginTop: 3, fontWeight: 500 }}>
           Leg {currentLeg} · {currentCalcLeg?.distance ?? "—"} miles
         </div>
+        {currentCalcLeg && (
+          <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 2, marginBottom: 16, fontWeight: 500 }}>
+            Predicted pace: {paceToDisplay(currentCalcLeg.time, currentCalcLeg.distance)} /mi
+          </div>
+        )}
 
         <div style={{ fontSize: 72, fontWeight: 900, letterSpacing: "-0.05em", lineHeight: 1, color: isOvertime ? RED : "#0f172a", fontFamily: FONT, fontVariantNumeric: "tabular-nums", marginBottom: 6, textAlign: "center" }}>
           {countdownMs != null ? formatManualCountdown(countdownMs) : "--:--"}
@@ -115,11 +120,14 @@ function RunningScreen({
             const eta = legETAMap.get(leg.id);
             const rn = runnerMap[leg.runnerId];
             return (
-              <div key={leg.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 12px", borderRadius: 10, background: "rgba(0,0,0,0.04)", marginBottom: 5, minHeight: 48 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", width: 42, flexShrink: 0, fontFamily: FONT }}>Leg {leg.id}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rn?.name ?? "—"}</span>
-                <span style={{ fontSize: 13, color: "#64748b", flexShrink: 0 }}>{leg.distance}mi</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", flexShrink: 0 }}>ETA {formatLocalTime(eta?.endMs)}</span>
+              <div key={leg.id} style={{ padding: "11px 12px", borderRadius: 10, background: "rgba(0,0,0,0.04)", marginBottom: 5 }}>
+                <div style={{ marginBottom: 4 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>{rn?.name ?? "—"}</span>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, color: "#94a3b8" }}>Leg {leg.id} · {leg.distance}mi · {paceToDisplay(leg.time, leg.distance)} /mi</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>· ETA {formatLocalTime(eta?.endMs)}</span>
+                </div>
               </div>
             );
           })}
@@ -229,23 +237,27 @@ function FinishScreen({
       </div>
 
       <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 10, fontFamily: FONT }}>All Legs</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         {legResults.map((res, ri) => {
           const cl = calculatedLegs.find(l => l.id === res.legId);
           const rn = runnerMap[res.runnerId];
           const diff = (cl?.time ?? 0) - res.elapsedSeconds;
           return (
-            <div key={res.legId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: "rgba(0,0,0,0.03)", minHeight: 48 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", width: 44, flexShrink: 0 }}>Leg {res.legId}</span>
-              <span style={{ fontSize: 13, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rn?.name ?? "—"}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", flexShrink: 0 }}>{formatTime(Math.round(res.elapsedSeconds))}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: diff >= 0 ? "#16a34a" : RED, flexShrink: 0 }}>
-                {diff >= 0 ? "+" : ""}{formatTime(Math.round(Math.abs(diff)))}
-              </span>
-              <button
-                onClick={() => onSetLegEditModal({ resultIndex: ri, legId: res.legId, legName: cl?.name ?? `Leg ${res.legId}`, distance: res.distance, startMs: res.startTime, endMs: res.endTime })}
-                style={{ fontSize: 11, background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 7px", cursor: "pointer", color: "#64748b", fontFamily: "inherit", flexShrink: 0 }}
-              >✏️</button>
+            <div key={res.legId} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(0,0,0,0.03)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", flexShrink: 0 }}>Leg {res.legId}</span>
+                <span style={{ fontSize: 13, color: "#374151" }}>{rn?.name ?? "—"}</span>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{formatTime(Math.round(res.elapsedSeconds))}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: diff >= 0 ? "#16a34a" : RED }}>
+                  {diff >= 0 ? "+" : ""}{formatTime(Math.round(Math.abs(diff)))}
+                </span>
+                <button
+                  onClick={() => onSetLegEditModal({ resultIndex: ri, legId: res.legId, legName: cl?.name ?? `Leg ${res.legId}`, distance: res.distance, startMs: res.startTime, endMs: res.endTime })}
+                  style={{ fontSize: 11, background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 7px", cursor: "pointer", color: "#64748b", fontFamily: "inherit" }}
+                >✏️</button>
+              </div>
             </div>
           );
         })}
