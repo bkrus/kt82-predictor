@@ -62,9 +62,9 @@ function RunningScreen({
   const currentLegIndex = calculatedLegs.findIndex(l => l.id === currentLeg);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100vw", height: "100vh", overflow: "hidden" }}>
       {/* Primary UI: carousel with embedded countdown + NEXT RUNNER */}
-      <div style={{ padding: "0 20px" }}>
+      <div style={{ flex: 1, maxHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden", padding: "0 20px" }}>
         <LegCarousel
           completedLegs={legResults}
           currentLegIndex={currentLegIndex}
@@ -79,7 +79,7 @@ function RunningScreen({
       </div>
 
       {/* Footer: adjust + reset */}
-      <div style={{ padding: "8px 20px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+      <div style={{ padding: "8px 20px", paddingBottom: "calc(24px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <button onClick={onAdjustCurrentLegStart} style={{ fontSize: 12, background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>
           Adjust start time for this leg ✏️
         </button>

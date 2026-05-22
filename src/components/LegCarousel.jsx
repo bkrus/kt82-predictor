@@ -10,17 +10,41 @@ const AMBER = "#F59E0B";
 const GREEN = "#10B981";
 const RED   = "#EF4444";
 
-const CARD_H         = 118;
-const CURRENT_CARD_H = 280;
-const CONTAINER_H    = 620;
 const SWIPE_THRESHOLD = 50;
+const GAP = 12;
 
-const SLOTS = [
-  { offsetY: -211, scale: 0.85, opacity: 0.6 },
-  { offsetY: 0,    scale: 1.0,  opacity: 1.0 },
-  { offsetY: 211,  scale: 0.85, opacity: 0.7 },
-  { offsetY: 341,  scale: 0.75, opacity: 0.6 },
-];
+function computeCarouselDims() {
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 390;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 812;
+  const isLandscape = vw > vh;
+  const centerCardH = Math.round(Math.min(280, isLandscape ? vh * 0.55 : vh * 0.6));
+  const sideCardH = Math.round(centerCardH * (118 / 280));
+  const naturalH = centerCardH + 2 * (sideCardH + GAP) + GAP;
+  const peek = isLandscape ? 0 : Math.min(68, Math.round(vh * 0.1));
+  const maxContainerH = isLandscape ? Math.round(vh * 0.68) : Math.round(vh * 0.95);
+  const containerH = Math.min(naturalH + peek, maxContainerH);
+  const slots = [
+    { offsetY: -(centerCardH / 2 + GAP + sideCardH / 2), scale: 0.85, opacity: 0.6 },
+    { offsetY: 0, scale: 1.0, opacity: 1.0 },
+    { offsetY: centerCardH / 2 + GAP + sideCardH / 2, scale: 0.85, opacity: 0.7 },
+    { offsetY: centerCardH / 2 + 2 * GAP + sideCardH + sideCardH / 2, scale: 0.75, opacity: 0.6 },
+  ];
+  return { centerCardH, sideCardH, containerH, slots };
+}
+
+function useCarouselDimensions() {
+  const [dims, setDims] = useState(computeCarouselDims);
+  useEffect(() => {
+    const handle = () => setDims(computeCarouselDims());
+    window.addEventListener('resize', handle);
+    window.addEventListener('orientationchange', handle);
+    return () => {
+      window.removeEventListener('resize', handle);
+      window.removeEventListener('orientationchange', handle);
+    };
+  }, []);
+  return dims;
+}
 
 // ─── Inline pace-edit modal ───────────────────────────────────────────────────
 
@@ -105,12 +129,11 @@ function SourceBadge({ source }) {
 
 // ─── Individual leg card ──────────────────────────────────────────────────────
 
-function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, onOpenPaceEdit, onOpenTimeEdit, fastestLegId }) {
+function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNextRunner, isLastLeg, onOpenPaceEdit, onOpenTimeEdit, fastestLegId }) {
   const { leg, result, isCurrent, isCompleted } = item;
   const runner = runnerMap[leg.runnerId];
-  const { offsetY, scale, opacity } = SLOTS[slot];
+  const { offsetY, scale, opacity } = slotData;
   const isCenter = slot === 1;
-  const cardHeight = isCenter ? CURRENT_CARD_H : CARD_H;
   const distanceFromCenter = slot - 1;
 
   // ── State-based visual tokens ──────────────────────────────────────────────
@@ -197,7 +220,7 @@ function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, on
           </div>
           {isCenter && isCurrent && !isCompleted ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginTop: 2 }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: "clamp(20px, 6vw, 28px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 🏃 {runner?.name ?? "—"}
               </div>
               <button
@@ -210,7 +233,7 @@ function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, on
               </button>
             </div>
           ) : (
-            <div style={{ fontSize: isCenter ? 22 : 17, fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div style={{ fontSize: isCenter ? "clamp(20px, 6vw, 28px)" : "clamp(14px, 4.5vw, 17px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {isCurrent ? `🏃 ${runner?.name ?? "—"}` : (runner?.name ?? "—")}
             </div>
           )}
@@ -245,7 +268,7 @@ function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, on
       {isCenter && !isCompleted && isCurrent && (
         <>
           <div style={{ textAlign: "center", marginTop: 10, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ fontSize: 58, fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1, color: isOvertime ? RED : "#1e1b4b", fontFamily: FONT, fontVariantNumeric: "tabular-nums", textShadow: isOvertime ? "none" : "0 0 24px rgba(99,102,241,0.15)" }}>
+            <div style={{ fontSize: "clamp(48px, 12vw, 84px)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1, color: isOvertime ? RED : "#1e1b4b", fontFamily: FONT, fontVariantNumeric: "tabular-nums", textShadow: isOvertime ? "none" : "0 0 24px rgba(99,102,241,0.15)" }}>
               {countdownMs !== null ? formatManualCountdown(countdownMs) : "--:--"}
             </div>
             {isOvertime && (
@@ -345,6 +368,7 @@ export function LegCarousel({
   onEditPace,
   onEditLegTime,
 }) {
+  const { centerCardH, sideCardH, containerH, slots } = useCarouselDimensions();
   const safeStart = Math.max(0, Math.min(currentLegIndex >= 0 ? currentLegIndex : 0, calculatedLegs.length - 1));
   const [focusedIdx, setFocusedIdx] = useState(safeStart);
   const [paceModal, setPaceModal] = useState(null);  // { item }
@@ -441,7 +465,7 @@ export function LegCarousel({
 
       {/* Carousel track */}
       <div
-        style={{ position: "relative", height: CONTAINER_H, overflow: "hidden", touchAction: "pan-x", perspective: "1000px" }}
+        style={{ position: "relative", height: containerH, overflow: "hidden", touchAction: "pan-x", perspective: "1000px" }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
@@ -456,6 +480,8 @@ export function LegCarousel({
               key={entry.item.leg.id}
               item={entry.item}
               slot={entry.slot}
+              slotData={slots[entry.slot]}
+              cardHeight={entry.slot === 1 ? centerCardH : sideCardH}
               runnerMap={runnerMap}
               legETAMap={legETAMap}
               onNextRunner={onNextRunner}
