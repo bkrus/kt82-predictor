@@ -76,6 +76,7 @@ function RunningScreen({
   onNextRunner, onAdjustCurrentLegStart,
   onUpdateLegPace, onEditLegTime,
   resetConfirm, onResetRace, onSetResetConfirm,
+  stravaConnections,
 }) {
   const [fabOpen, setFabOpen] = useState(false);
   const currentLegIndex = calculatedLegs.findIndex(l => l.id === currentLeg);
@@ -100,6 +101,7 @@ function RunningScreen({
           isLastLeg={isLastLeg}
           onEditPace={onUpdateLegPace}
           onEditLegTime={onEditLegTime}
+          stravaConnections={stravaConnections}
         />
       </div>
 
@@ -366,6 +368,7 @@ export function ManualRacePanel({
   onClearExchange,
   onUpdateLegPace,
   onEditLegTime,
+  stravaConnections,
 }) {
   useEffect(() => {
     if (!exchangeScreen) return;
@@ -405,6 +408,7 @@ export function ManualRacePanel({
         resetConfirm={resetConfirm}
         onResetRace={onResetRace}
         onSetResetConfirm={onSetResetConfirm}
+        stravaConnections={stravaConnections}
       />
     );
   }

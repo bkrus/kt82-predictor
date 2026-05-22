@@ -129,7 +129,7 @@ function SourceBadge({ source }) {
 
 // ─── Individual leg card ──────────────────────────────────────────────────────
 
-function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNextRunner, isLastLeg, onOpenPaceEdit, onOpenTimeEdit, fastestLegId }) {
+function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNextRunner, isLastLeg, onOpenPaceEdit, onOpenTimeEdit, fastestLegId, profilePicUrl }) {
   const { leg, result, isCurrent, isCompleted } = item;
   const runner = runnerMap[leg.runnerId];
   const { offsetY, scale, opacity } = slotData;
@@ -219,9 +219,16 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
             )}
           </div>
           {isCenter && isCurrent && !isCompleted ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginTop: 2 }}>
-              <div style={{ fontSize: "clamp(20px, 6vw, 28px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                🏃 {runner?.name ?? "—"}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                {profilePicUrl ? (
+                  <img src={profilePicUrl} alt="" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "2.5px solid rgba(255,255,255,0.45)", boxShadow: "0 2px 12px rgba(0,0,0,0.35)" }} />
+                ) : (
+                  <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>🏃</span>
+                )}
+                <div style={{ fontSize: "clamp(18px, 5.5vw, 26px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {runner?.name ?? "—"}
+                </div>
               </div>
               <button
                 type="button"
@@ -233,8 +240,13 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
               </button>
             </div>
           ) : (
-            <div style={{ fontSize: isCenter ? "clamp(20px, 6vw, 28px)" : "clamp(14px, 4.5vw, 17px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {isCurrent ? `🏃 ${runner?.name ?? "—"}` : (runner?.name ?? "—")}
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 2, minWidth: 0 }}>
+              {profilePicUrl && (
+                <img src={profilePicUrl} alt="" style={{ width: isCenter ? 32 : 26, height: isCenter ? 32 : 26, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: isCompleted ? "1.5px solid #86efac" : "1px solid rgba(0,0,0,0.10)" }} />
+              )}
+              <div style={{ fontSize: isCenter ? "clamp(20px, 6vw, 28px)" : "clamp(14px, 4.5vw, 17px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {isCurrent ? `🏃 ${runner?.name ?? "—"}` : (runner?.name ?? "—")}
+              </div>
             </div>
           )}
           <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>
@@ -323,6 +335,9 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
       {isCenter && isCompleted && result && (
         <>
           <div style={{ textAlign: "center", marginTop: 12, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+            {profilePicUrl && (
+              <img src={profilePicUrl} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "2px solid #86efac", boxShadow: "0 2px 10px rgba(34,197,94,0.25)", marginBottom: 8 }} />
+            )}
             <div style={{ fontSize: 48, fontWeight: 900, color: "#14532d", fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1 }}>
               {formatTime(Math.round(result.elapsedSeconds))}
             </div>
@@ -367,6 +382,7 @@ export function LegCarousel({
   isLastLeg,
   onEditPace,
   onEditLegTime,
+  stravaConnections,
 }) {
   const { centerCardH, sideCardH, containerH, slots } = useCarouselDimensions();
   const safeStart = Math.max(0, Math.min(currentLegIndex >= 0 ? currentLegIndex : 0, calculatedLegs.length - 1));
@@ -489,6 +505,7 @@ export function LegCarousel({
               onOpenPaceEdit={(item) => setPaceModal({ item })}
               onOpenTimeEdit={(item) => setTimeModal({ item })}
               fastestLegId={fastestLegId}
+              profilePicUrl={stravaConnections?.[entry.item.leg.runnerId]?.strava_profile_pic_url ?? null}
             />
           );
         })}
