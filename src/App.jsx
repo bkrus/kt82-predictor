@@ -622,6 +622,7 @@ export default function App() {
             onUpdateLegPace={(legId, pace) => setLegs(prev => prev.map(l => l.id === legId ? { ...l, pace } : l))}
             onEditLegTime={handleSaveLegEdit}
             stravaConnections={stravaConnections}
+            onSetMode={setMode}
           />
           </div>
         )}

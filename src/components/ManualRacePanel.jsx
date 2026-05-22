@@ -76,7 +76,7 @@ function RunningScreen({
   onNextRunner, onAdjustCurrentLegStart,
   onUpdateLegPace, onEditLegTime,
   resetConfirm, onResetRace, onSetResetConfirm,
-  stravaConnections, teamTime,
+  stravaConnections, teamTime, onSetMode,
 }) {
   const [fabOpen, setFabOpen] = useState(false);
   const currentLegIndex = calculatedLegs.findIndex(l => l.id === currentLeg);
@@ -215,6 +215,17 @@ function RunningScreen({
                     <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
                   </>
                 )}
+                {onSetMode && (
+                  <>
+                    <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
+                    <FabMenuItem
+                      icon="📋"
+                      label="View Predictor"
+                      onClick={() => { closeFab(); onSetMode("predictor"); }}
+                    />
+                  </>
+                )}
+                <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
                 <FabMenuItem icon="✕" label="Close menu" onClick={closeFab} muted />
               </>
             )}
@@ -378,6 +389,7 @@ export function ManualRacePanel({
   onUpdateLegPace,
   onEditLegTime,
   stravaConnections,
+  onSetMode,
 }) {
   useEffect(() => {
     if (!exchangeScreen) return;
@@ -419,6 +431,7 @@ export function ManualRacePanel({
         onSetResetConfirm={onSetResetConfirm}
         stravaConnections={stravaConnections}
         teamTime={teamTime}
+        onSetMode={onSetMode}
       />
     );
   }
