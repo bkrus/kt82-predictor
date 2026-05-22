@@ -179,19 +179,6 @@ function RunningScreen({
               </div>
             ) : (
               <>
-                <FabMenuItem
-                  icon="⏱"
-                  label="Adjust start time"
-                  onClick={() => { setFabOpen(false); onAdjustCurrentLegStart(); }}
-                />
-                <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
-                <FabMenuItem
-                  icon="↺"
-                  label="Reset race"
-                  onClick={() => onSetResetConfirm(true)}
-                  color={RED}
-                />
-                <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
                 {predictedFinishStr && (
                   <>
                     <button
@@ -216,17 +203,27 @@ function RunningScreen({
                   </>
                 )}
                 {onSetMode && (
-                  <>
-                    <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
-                    <FabMenuItem
-                      icon="📋"
-                      label="View Predictor"
-                      onClick={() => { closeFab(); onSetMode("predictor"); }}
-                    />
-                  </>
+                  <FabMenuItem
+                    icon="🏠"
+                    label="Home"
+                    onClick={() => { closeFab(); onSetMode("predictor"); }}
+                  />
                 )}
                 <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
-                <FabMenuItem icon="✕" label="Close menu" onClick={closeFab} muted />
+                <FabMenuItem
+                  icon="⏱"
+                  label="Adjust start time"
+                  onClick={() => { setFabOpen(false); onAdjustCurrentLegStart(); }}
+                />
+                <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
+                <FabMenuItem
+                  icon="↺"
+                  label="Reset race"
+                  onClick={() => onSetResetConfirm(true)}
+                  color={RED}
+                />
+                <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
+                <FabMenuItem icon="✕" label="Close" onClick={closeFab} muted />
               </>
             )}
           </div>
