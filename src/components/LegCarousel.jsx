@@ -139,21 +139,21 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
   // ── State-based visual tokens ──────────────────────────────────────────────
   const rating = leg.rating ?? null;
 
-  const cardBg     = isCompleted ? "#f3f4f6" : isCurrent ? "#eef2ff" : "#ffffff";
+  const cardBg     = isCompleted ? "#f0fdf4" : isCurrent ? "#312e81" : "#ffffff";
   const cardBorder = isCompleted
-    ? "1px solid #d1d5db"
+    ? "1.5px solid #86efac"
     : isCurrent
-      ? "2px solid #6366f1"
+      ? "2px solid #818cf8"
       : "1px solid #e5e7eb";
   const cardShadow = isCurrent
-    ? "0 8px 32px rgba(99,102,241,0.18), 0 2px 8px rgba(0,0,0,0.06)"
+    ? "0 8px 40px rgba(99,102,241,0.55), 0 0 0 1px rgba(129,140,248,0.3)"
     : isCompleted
-      ? "0 1px 4px rgba(0,0,0,0.06)"
+      ? "0 2px 12px rgba(34,197,94,0.15)"
       : "0 2px 8px rgba(0,0,0,0.05)";
-  const textPrimary  = isCompleted ? "#374151" : "#0f172a";
-  const textMuted    = isCompleted ? "#6b7280" : "#64748b";
+  const textPrimary  = isCompleted ? "#14532d" : isCurrent ? "#ffffff" : "#0f172a";
+  const textMuted    = isCompleted ? "#16a34a" : isCurrent ? "rgba(255,255,255,0.65)" : "#64748b";
   const legNumPrefix = isCompleted ? "✓ " : isCurrent ? "" : "⏭ ";
-  const paceColor    = isCompleted ? "#6b7280" : isCurrent ? "#6366f1" : "#6366f1";
+  const paceColor    = isCompleted ? "#16a34a" : isCurrent ? "#a5b4fc" : "#6366f1";
 
   // Live countdown tick — center card only
   const [now, setNow] = useState(() => Date.now());
@@ -209,7 +209,7 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
         <div style={{ minWidth: 0, flex: 1 }}>
           {/* Leg number + difficulty badge on same row */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: isCompleted ? "#6b7280" : isCurrent ? "#6366f1" : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: FONT, flexShrink: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: isCompleted ? "#16a34a" : isCurrent ? "#a5b4fc" : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: FONT, flexShrink: 0 }}>
               {legNumPrefix}Leg {leg.id}
             </div>
             {rating && (
@@ -227,7 +227,7 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onOpenPaceEdit(item); }}
                 title="Edit pace"
-                style={{ flexShrink: 0, width: 36, height: 36, borderRadius: "50%", background: "#f3f4f6", border: "1px solid #d1d5db", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{ flexShrink: 0, width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 ✏️
               </button>
@@ -268,13 +268,13 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
       {isCenter && !isCompleted && isCurrent && (
         <>
           <div style={{ textAlign: "center", marginTop: 10, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ fontSize: "clamp(48px, 12vw, 84px)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1, color: isOvertime ? RED : "#1e1b4b", fontFamily: FONT, fontVariantNumeric: "tabular-nums", textShadow: isOvertime ? "none" : "0 0 24px rgba(99,102,241,0.15)" }}>
+            <div style={{ fontSize: "clamp(48px, 12vw, 84px)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1, color: isOvertime ? "#fca5a5" : "#ffffff", fontFamily: FONT, fontVariantNumeric: "tabular-nums", textShadow: isOvertime ? "none" : "0 0 32px rgba(165,180,252,0.5)" }}>
               {countdownMs !== null ? formatManualCountdown(countdownMs) : "--:--"}
             </div>
             {isOvertime && (
               <div style={{ fontSize: 12, color: RED, fontWeight: 700, marginTop: 3 }}>Over predicted time</div>
             )}
-            <div style={{ fontSize: 13, color: "#4f46e5", fontWeight: 600, marginTop: 4 }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", fontWeight: 600, marginTop: 4 }}>
               Exchange at {formatLocalTime(eta?.endMs)}
             </div>
           </div>
@@ -289,7 +289,7 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
               >
                 {isLastLeg ? "🏁 FINISH RACE" : "NEXT RUNNER"}
               </button>
-              <div style={{ textAlign: "center", fontSize: 12, color: "#94a3b8", marginTop: 5 }}>
+              <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 5 }}>
                 {isLastLeg ? "Records actual finish time" : "Tap when runner exchanges"}
               </div>
             </div>
@@ -323,10 +323,10 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
       {isCenter && isCompleted && result && (
         <>
           <div style={{ textAlign: "center", marginTop: 12, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ fontSize: 48, fontWeight: 900, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1 }}>
+            <div style={{ fontSize: 48, fontWeight: 900, color: "#14532d", fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1 }}>
               {formatTime(Math.round(result.elapsedSeconds))}
             </div>
-            <div style={{ fontSize: 15, color: "#64748b", marginTop: 6 }}>
+            <div style={{ fontSize: 15, color: "#16a34a", marginTop: 6 }}>
               {paceToDisplay(result.elapsedSeconds, result.distance)}/mi
             </div>
             <SourceBadge source={result.source} />
@@ -334,7 +334,7 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onOpenTimeEdit(item); }}
-            style={{ width: "100%", marginTop: 10, padding: "12px 0", background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 12, color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}
+            style={{ width: "100%", marginTop: 10, padding: "12px 0", background: "#dcfce7", border: "1.5px solid #86efac", borderRadius: 12, color: "#14532d", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}
           >
             ✏️ Edit times
           </button>
