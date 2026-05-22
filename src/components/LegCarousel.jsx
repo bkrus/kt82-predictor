@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import { paceToDisplay, formatTime, formatManualCountdown, formatLocalTime, normalizePaceInput, validatePace } from "../utils";
 import { PaceInput } from "./PaceInput";
 import { LegEditModal } from "./LegEditModal";
@@ -104,12 +105,13 @@ function SourceBadge({ source }) {
 
 // ─── Individual leg card ──────────────────────────────────────────────────────
 
-function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, onOpenPaceEdit, onOpenTimeEdit, animating }) {
+function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, onOpenPaceEdit, onOpenTimeEdit, fastestLegId }) {
   const { leg, result, isCurrent, isCompleted } = item;
   const runner = runnerMap[leg.runnerId];
   const { offsetY, scale, opacity } = SLOTS[slot];
   const isCenter = slot === 1;
   const cardHeight = isCenter ? CURRENT_CARD_H : CARD_H;
+  const distanceFromCenter = slot - 1;
 
   // ── State-based visual tokens ──────────────────────────────────────────────
   const rating = leg.rating ?? null;
@@ -143,19 +145,23 @@ function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, on
   const isOvertime = countdownMs !== null && countdownMs < 0;
 
   return (
-    <div
+    <motion.div
+      initial={false}
+      animate={{
+        y: offsetY - cardHeight / 2,
+        scale,
+        opacity,
+        rotateY: distanceFromCenter * 60,
+      }}
+      transition={{ duration: 0.42, ease: "easeOut" }}
       style={{
         position: "absolute",
         top: "50%",
         left: "4%",
         width: "92%",
         height: cardHeight,
-        transform: `translateY(calc(-50% + ${offsetY}px)) scale(${scale})`,
+        zIndex: 5 - Math.abs(distanceFromCenter),
         transformOrigin: "center center",
-        opacity,
-        transition: animating
-          ? "transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.38s ease"
-          : "none",
         background: cardBg,
         borderRadius: 16,
         border: cardBorder,
@@ -168,6 +174,13 @@ function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, on
         userSelect: "none",
       }}
     >
+      {/* ── Fastest pace ribbon ── */}
+      {isCompleted && result?.legId === fastestLegId && (
+        <div style={{ position: "absolute", top: 8, right: 8, background: "#2563eb", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: FONT, letterSpacing: "0.02em", pointerEvents: "none" }}>
+          ⚡ Fastest
+        </div>
+      )}
+
       {/* ── Top row: leg meta + right stat ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
@@ -261,16 +274,17 @@ function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, on
         </>
       )}
 
-      {/* ── Center card: upcoming leg focused — countdown + edit pace ── */}
+      {/* ── Center card: upcoming leg focused — description + edit pace ── */}
       {isCenter && !isCompleted && !isCurrent && (
         <>
-          <div style={{ textAlign: "center", marginTop: 10, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ fontSize: 58, fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1, color: "#0f172a", fontFamily: FONT, fontVariantNumeric: "tabular-nums" }}>
-              {countdownMs !== null ? formatManualCountdown(countdownMs) : "--:--"}
-            </div>
-            <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-              Exchange at {formatLocalTime(eta?.endMs)}
-            </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", marginTop: 10, padding: "0 4px" }}>
+            {leg.name ? (
+              <div style={{ fontSize: 15, fontWeight: 500, color: "#374151", fontFamily: FONT, lineHeight: 1.4 }}>
+                {leg.name}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: "#94a3b8", fontFamily: FONT }}>No description</div>
+            )}
           </div>
           <button
             type="button"
@@ -314,7 +328,7 @@ function LegCard({ item, slot, runnerMap, legETAMap, onNextRunner, isLastLeg, on
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -333,18 +347,21 @@ export function LegCarousel({
 }) {
   const safeStart = Math.max(0, Math.min(currentLegIndex >= 0 ? currentLegIndex : 0, calculatedLegs.length - 1));
   const [focusedIdx, setFocusedIdx] = useState(safeStart);
-  const [animating, setAnimating] = useState(false);
   const [paceModal, setPaceModal] = useState(null);  // { item }
   const [timeModal, setTimeModal] = useState(null);  // { item }
   const touchStartY = useRef(null);
   const mouseStartY = useRef(null);
-  const animTimer = useRef(null);
 
   useEffect(() => {
     if (focusedIdx >= calculatedLegs.length) {
       setFocusedIdx(Math.max(0, calculatedLegs.length - 1));
     }
   }, [calculatedLegs.length, focusedIdx]);
+
+  const fastestLegId = useMemo(() => {
+    if (completedLegs.length === 0) return null;
+    return completedLegs.reduce((min, leg) => leg.actualPace < min.actualPace ? leg : min).legId;
+  }, [completedLegs]);
 
   const legItems = calculatedLegs.map((leg, idx) => {
     const resultIndex = completedLegs.findIndex(r => r.legId === leg.id);
@@ -360,16 +377,10 @@ export function LegCarousel({
       if (next < 0 || next >= legItems.length) return prev;
       return next;
     });
-    setAnimating(true);
-    if (animTimer.current) clearTimeout(animTimer.current);
-    animTimer.current = setTimeout(() => setAnimating(false), 420);
   }, [legItems.length]);
 
   const jumpTo = useCallback((i) => {
     setFocusedIdx(i);
-    setAnimating(true);
-    if (animTimer.current) clearTimeout(animTimer.current);
-    animTimer.current = setTimeout(() => setAnimating(false), 420);
   }, []);
 
   const handleTouchStart = useCallback((e) => { touchStartY.current = e.touches[0].clientY; }, []);
@@ -430,7 +441,7 @@ export function LegCarousel({
 
       {/* Carousel track */}
       <div
-        style={{ position: "relative", height: CONTAINER_H, overflow: "hidden", touchAction: "pan-x" }}
+        style={{ position: "relative", height: CONTAINER_H, overflow: "hidden", touchAction: "pan-x", perspective: "1000px" }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
@@ -451,7 +462,7 @@ export function LegCarousel({
               isLastLeg={isLastLeg}
               onOpenPaceEdit={(item) => setPaceModal({ item })}
               onOpenTimeEdit={(item) => setTimeModal({ item })}
-              animating={animating}
+              fastestLegId={fastestLegId}
             />
           );
         })}
