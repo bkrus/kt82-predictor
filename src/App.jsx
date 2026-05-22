@@ -468,13 +468,26 @@ export default function App() {
     if (!r) return;
     const elapsed = Math.max(1, (newEndMs - newStartMs) / 1000);
     const editedAt = new Date().toISOString();
+
+    // Backward cascade: if start time changed, sync previous leg's end to match
+    let cascadeFrom = resultIndex;
+    if (resultIndex > 0 && newStartMs !== r.startTime) {
+      const prev = updated[resultIndex - 1];
+      const prevElapsed = Math.max(1, (newStartMs - prev.startTime) / 1000);
+      updated[resultIndex - 1] = { ...prev, endTime: newStartMs, elapsedSeconds: prevElapsed, actualPace: prevElapsed / 60 / prev.distance, editedAt, runnerStravaId: prev.runnerStravaId || null, runnerName: prev.runnerName || "Unknown" };
+      cascadeFrom = resultIndex - 1;
+    }
+
     updated[resultIndex] = { ...r, startTime: newStartMs, endTime: newEndMs, elapsedSeconds: elapsed, actualPace: elapsed / 60 / r.distance, editedAt, runnerStravaId: r.runnerStravaId || null, runnerName: r.runnerName || "Unknown" };
+
+    // Forward cascade: propagate end time changes into subsequent legs' start times
     for (let i = resultIndex + 1; i < updated.length; i++) {
       const prevEnd = updated[i - 1].endTime;
       const cur = updated[i];
       const e = Math.max(1, (cur.endTime - prevEnd) / 1000);
       updated[i] = { ...cur, startTime: prevEnd, elapsedSeconds: e, actualPace: e / 60 / cur.distance, editedAt, runnerStravaId: cur.runnerStravaId || null, runnerName: cur.runnerName || "Unknown" };
     }
+
     const newRaceStart = (resultIndex === 0 && r.legId === 1) ? newStartMs : manualRaceStartedAt;
     setManualLegResults(updated);
     if (newRaceStart !== manualRaceStartedAt) {
@@ -483,8 +496,7 @@ export default function App() {
     }
     await Promise.all([
       saveRaceState(manualRaceStatus, newRaceStart, manualRaceEndedAt, manualCurrentLeg, updated),
-      // Upsert the directly edited row plus any cascade-shifted rows
-      ...updated.slice(resultIndex).map((res) => upsertManualEntry(res, editedAt)),
+      ...updated.slice(cascadeFrom).map((res) => upsertManualEntry(res, editedAt)),
     ]);
     setLegEditModal(null);
     setStravaToast({ type: "success", message: `Leg ${r.legId} updated` });
@@ -607,6 +619,8 @@ export default function App() {
             onAdjustCurrentLegStart={handleAdjustCurrentLegStart}
             onSetResetConfirm={setManualResetConfirm}
             onClearExchange={handleClearExchange}
+            onUpdateLegPace={(legId, pace) => setLegs(prev => prev.map(l => l.id === legId ? { ...l, pace } : l))}
+            onEditLegTime={handleSaveLegEdit}
           />
           </div>
         )}

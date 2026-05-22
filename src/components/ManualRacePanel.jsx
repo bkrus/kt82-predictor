@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { formatTime, formatManualCountdown, formatLocalTime, paceToDisplay } from "../utils";
+import { formatTime, paceToDisplay } from "../utils";
+import { LegCarousel } from "./LegCarousel";
 
 const AMBER = "#F59E0B";
 const GREEN = "#10B981";
 const RED = "#EF4444";
 const FONT = "'Archivo', system-ui, sans-serif";
+
 
 // ─── Phase 1: Pre-Race ────────────────────────────────────────────────────────
 
@@ -51,96 +53,33 @@ function PreRaceScreen({ calculatedLegs, runners, teamTime, startTime, onStartRa
 // ─── Phase 2: Running ─────────────────────────────────────────────────────────
 
 function RunningScreen({
-  currentLeg, currentRunner, currentCalcLeg, isLastLeg,
-  countdownMs, legETAMap, calculatedLegs, runnerMap,
-  showAllUpcoming, onToggleAll,
+  currentLeg, isLastLeg,
+  legETAMap, calculatedLegs, runnerMap, legResults,
   onNextRunner, onAdjustCurrentLegStart,
+  onUpdateLegPace, onEditLegTime,
   resetConfirm, onResetRace, onSetResetConfirm,
 }) {
-  const isOvertime = countdownMs != null && countdownMs < 0;
-  const exchangeAtMs = legETAMap.get(currentLeg)?.endMs;
-  const upcomingLegs = calculatedLegs.filter(l => l.id > currentLeg);
-  const visibleUpcoming = showAllUpcoming ? upcomingLegs : upcomingLegs.slice(0, 3);
+  const currentLegIndex = calculatedLegs.findIndex(l => l.id === currentLeg);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "70vh" }}>
-
-      {/* TOP: amber banner + runner name + countdown */}
-      <div style={{ padding: "16px 20px 20px", background: "rgba(245,158,11,0.05)", borderBottom: "1px solid rgba(245,158,11,0.12)" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", background: "#fef3c7", border: `1px solid ${AMBER}`, borderRadius: 999, padding: "3px 12px", marginBottom: 16 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#92400e", fontFamily: FONT }}>⏱ MANUAL MODE</span>
-        </div>
-
-        <div style={{ fontSize: 28, fontWeight: 900, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
-          {currentRunner?.name ?? "—"}
-        </div>
-        <div style={{ fontSize: 15, color: "#64748b", marginTop: 3, fontWeight: 500 }}>
-          Leg {currentLeg} · {currentCalcLeg?.distance ?? "—"} miles
-        </div>
-        {currentCalcLeg && (
-          <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 2, marginBottom: 16, fontWeight: 500 }}>
-            Predicted pace: {paceToDisplay(currentCalcLeg.time, currentCalcLeg.distance)} /mi
-          </div>
-        )}
-
-        <div style={{ fontSize: 72, fontWeight: 900, letterSpacing: "-0.05em", lineHeight: 1, color: isOvertime ? RED : "#0f172a", fontFamily: FONT, fontVariantNumeric: "tabular-nums", marginBottom: 6, textAlign: "center" }}>
-          {countdownMs != null ? formatManualCountdown(countdownMs) : "--:--"}
-        </div>
-        {isOvertime && (
-          <div style={{ textAlign: "center", fontSize: 13, color: RED, fontWeight: 600, marginBottom: 2 }}>Over predicted time</div>
-        )}
-        <div style={{ textAlign: "center", fontSize: 14, color: "#64748b", marginTop: 4 }}>
-          Exchange at {formatLocalTime(exchangeAtMs)}
-        </div>
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      {/* Primary UI: carousel with embedded countdown + NEXT RUNNER */}
+      <div style={{ padding: "0 20px" }}>
+        <LegCarousel
+          completedLegs={legResults}
+          currentLegIndex={currentLegIndex}
+          calculatedLegs={calculatedLegs}
+          runnerMap={runnerMap}
+          legETAMap={legETAMap}
+          onNextRunner={onNextRunner}
+          isLastLeg={isLastLeg}
+          onEditPace={onUpdateLegPace}
+          onEditLegTime={onEditLegTime}
+        />
       </div>
 
-      {/* MIDDLE: Next Runner button */}
-      <div style={{ padding: "20px 20px 8px" }}>
-        <button
-          onClick={onNextRunner}
-          style={{ width: "100%", padding: "20px 0", background: isLastLeg ? GREEN : AMBER, border: "none", borderRadius: 16, color: "#fff", fontSize: 20, fontWeight: 800, cursor: "pointer", fontFamily: FONT, letterSpacing: "-0.01em", boxShadow: isLastLeg ? "0 4px 20px rgba(16,185,129,0.35)" : "0 4px 20px rgba(245,158,11,0.35)", transition: "transform 0.1s" }}
-          onPointerDown={e => { e.currentTarget.style.transform = "scale(0.97)"; }}
-          onPointerUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
-          onPointerLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-        >
-          {isLastLeg ? "🏁 FINISH RACE" : "NEXT RUNNER"}
-        </button>
-        <div style={{ textAlign: "center", fontSize: 13, color: "#94a3b8", marginTop: 8 }}>
-          {isLastLeg ? "Records actual finish time" : "Tap when runner exchanges"}
-        </div>
-      </div>
-
-      {/* BOTTOM: upcoming legs */}
-      {upcomingLegs.length > 0 && (
-        <div style={{ padding: "12px 20px 0" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 8, fontFamily: FONT }}>
-            Upcoming
-          </div>
-          {visibleUpcoming.map(leg => {
-            const eta = legETAMap.get(leg.id);
-            const rn = runnerMap[leg.runnerId];
-            return (
-              <div key={leg.id} style={{ padding: "11px 12px", borderRadius: 10, background: "rgba(0,0,0,0.04)", marginBottom: 5 }}>
-                <div style={{ marginBottom: 4 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>{rn?.name ?? "—"}</span>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, color: "#94a3b8" }}>Leg {leg.id} · {leg.distance}mi · {paceToDisplay(leg.time, leg.distance)} /mi</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>· ETA {formatLocalTime(eta?.endMs)}</span>
-                </div>
-              </div>
-            );
-          })}
-          {upcomingLegs.length > 3 && (
-            <button onClick={onToggleAll} style={{ fontSize: 13, color: "#6366f1", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: "4px 0", fontWeight: 600 }}>
-              {showAllUpcoming ? "Show less ↑" : `View all ${upcomingLegs.length} remaining ↓`}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Adjust + Reset */}
-      <div style={{ padding: "20px 20px 24px", marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+      {/* Footer: adjust + reset */}
+      <div style={{ padding: "8px 20px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
         <button onClick={onAdjustCurrentLegStart} style={{ fontSize: 12, background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>
           Adjust start time for this leg ✏️
         </button>
@@ -310,9 +249,9 @@ export function ManualRacePanel({
   onAdjustCurrentLegStart,
   onSetResetConfirm,
   onClearExchange,
+  onUpdateLegPace,
+  onEditLegTime,
 }) {
-  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
-
   useEffect(() => {
     if (!exchangeScreen) return;
     const t = setTimeout(onClearExchange, 3000);
@@ -339,17 +278,15 @@ export function ManualRacePanel({
     return (
       <RunningScreen
         currentLeg={currentLeg}
-        currentRunner={currentRunner}
-        currentCalcLeg={currentCalcLeg}
         isLastLeg={isLastLeg}
-        countdownMs={countdownMs}
         legETAMap={legETAMap}
         calculatedLegs={calculatedLegs}
         runnerMap={runnerMap}
-        showAllUpcoming={showAllUpcoming}
-        onToggleAll={() => setShowAllUpcoming(v => !v)}
+        legResults={legResults}
         onNextRunner={onNextRunner}
         onAdjustCurrentLegStart={onAdjustCurrentLegStart}
+        onUpdateLegPace={onUpdateLegPace}
+        onEditLegTime={onEditLegTime}
         resetConfirm={resetConfirm}
         onResetRace={onResetRace}
         onSetResetConfirm={onSetResetConfirm}
