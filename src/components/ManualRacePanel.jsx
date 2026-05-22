@@ -52,6 +52,24 @@ function PreRaceScreen({ calculatedLegs, runners, teamTime, startTime, onStartRa
 
 // ─── Phase 2: Running ─────────────────────────────────────────────────────────
 
+function FabMenuItem({ icon, label, onClick, color, muted }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: "100%", padding: "16px 20px", background: "none", border: "none",
+        cursor: "pointer", display: "flex", alignItems: "center", gap: 14,
+        fontFamily: FONT, fontSize: 16, fontWeight: 600,
+        color: muted ? "#9ca3af" : (color ?? "#0f172a"),
+        WebkitTapHighlightColor: "transparent",
+      }}
+    >
+      <span style={{ fontSize: 18, width: 24, textAlign: "center", lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
 function RunningScreen({
   currentLeg, isLastLeg,
   legETAMap, calculatedLegs, runnerMap, legResults,
@@ -59,12 +77,15 @@ function RunningScreen({
   onUpdateLegPace, onEditLegTime,
   resetConfirm, onResetRace, onSetResetConfirm,
 }) {
+  const [fabOpen, setFabOpen] = useState(false);
   const currentLegIndex = calculatedLegs.findIndex(l => l.id === currentLeg);
 
+  const closeFab = () => { setFabOpen(false); onSetResetConfirm(false); };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100vw", height: "100vh", overflow: "hidden" }}>
-      {/* Primary UI: carousel with embedded countdown + NEXT RUNNER */}
-      <div style={{ flex: 1, maxHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden", padding: "0 20px" }}>
+    <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
+      {/* Full-screen carousel */}
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 20px", boxSizing: "border-box" }}>
         <LegCarousel
           completedLegs={legResults}
           currentLegIndex={currentLegIndex}
@@ -78,23 +99,98 @@ function RunningScreen({
         />
       </div>
 
-      {/* Footer: adjust + reset */}
-      <div style={{ padding: "8px 20px", paddingBottom: "calc(24px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flexShrink: 0 }}>
-        <button onClick={onAdjustCurrentLegStart} style={{ fontSize: 12, background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>
-          Adjust start time for this leg ✏️
-        </button>
-        {resetConfirm ? (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>Reset race?</span>
-            <button onClick={onResetRace} style={{ padding: "6px 14px", background: RED, color: "#fff", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Reset</button>
-            <button onClick={() => onSetResetConfirm(false)} style={{ padding: "6px 14px", background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 7, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+      {/* FAB trigger */}
+      <button
+        onClick={() => setFabOpen(true)}
+        aria-label="Race options"
+        style={{
+          position: "fixed",
+          bottom: "calc(20px + env(safe-area-inset-bottom))",
+          right: 20,
+          width: 48, height: 48,
+          borderRadius: "50%",
+          background: "rgba(15,23,42,0.82)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          border: "1px solid rgba(255,255,255,0.14)",
+          color: "#fff", fontSize: 22, lineHeight: 1,
+          cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 100,
+          boxShadow: "0 4px 18px rgba(0,0,0,0.32)",
+          WebkitTapHighlightColor: "transparent",
+        }}
+      >
+        ⋮
+      </button>
+
+      {/* FAB menu overlay */}
+      {fabOpen && (
+        <div
+          onClick={closeFab}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(15,23,42,0.48)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            display: "flex", flexDirection: "column", justifyContent: "flex-end",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              margin: "0 16px",
+              marginBottom: "calc(16px + env(safe-area-inset-bottom))",
+              background: "#fff",
+              borderRadius: 16,
+              overflow: "hidden",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
+            }}
+          >
+            {resetConfirm ? (
+              <div style={{ padding: "20px 20px 24px" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#991b1b", marginBottom: 4, textAlign: "center" }}>
+                  Reset race?
+                </div>
+                <div style={{ fontSize: 13, color: "#64748b", marginBottom: 16, textAlign: "center" }}>
+                  All race data will be lost.
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={closeFab}
+                    style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#f1f5f9", fontSize: 15, fontWeight: 600, color: "#374151", cursor: "pointer", fontFamily: FONT }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={onResetRace}
+                    style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: RED, fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer", fontFamily: FONT }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <FabMenuItem
+                  icon="⏱"
+                  label="Adjust start time"
+                  onClick={() => { setFabOpen(false); onAdjustCurrentLegStart(); }}
+                />
+                <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
+                <FabMenuItem
+                  icon="↺"
+                  label="Reset race"
+                  onClick={() => onSetResetConfirm(true)}
+                  color={RED}
+                />
+                <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
+                <FabMenuItem icon="✕" label="Close menu" onClick={closeFab} muted />
+              </>
+            )}
           </div>
-        ) : (
-          <button onClick={() => onSetResetConfirm(true)} style={{ fontSize: 12, background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit" }}>
-            ↺ Reset Race
-          </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
