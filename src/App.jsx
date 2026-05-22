@@ -520,15 +520,8 @@ export default function App() {
         {/* Page header */}
         <div style={S.pageHeader}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <h1 style={S.pageTitle}>KT82 Predictor</h1>
-              {manualRaceStatus !== "idle" && (
-                <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#92400e", background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>
-                  ⏱ MANUAL MODE
-                </span>
-              )}
-            </div>
-            <p style={S.pageTitleSub}>Katy Trail 82 · Race pace planner</p>
+            <h1 style={S.pageTitle}>Run Forrest Run</h1>
+            <p style={S.pageTitleSub}>KT82 Predictor · Race pace planner</p>
           </div>
           <span style={S.saveStatus}>{formatSavedTime(lastSaved, currentTime)}</span>
         </div>
