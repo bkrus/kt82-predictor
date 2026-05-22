@@ -83,7 +83,7 @@ function RunningScreen({
   const closeFab = () => { setFabOpen(false); onSetResetConfirm(false); };
 
   return (
-    <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", margin: 0, padding: 0, boxSizing: "border-box", overflow: "hidden", zIndex: 50, background: "#fff" }}>
       {/* Full-screen carousel */}
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 20px", boxSizing: "border-box" }}>
         <LegCarousel
