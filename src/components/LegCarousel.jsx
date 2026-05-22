@@ -471,7 +471,7 @@ export function LegCarousel({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
       >
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 10, background: "linear-gradient(to bottom, rgba(255,255,255,0.9) 0%, transparent 12%, transparent 82%, rgba(255,255,255,0.9) 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 10, background: "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 14%, transparent 82%, rgba(0,0,0,0.85) 100%)" }} />
 
         {slotEntries.map(entry => {
           if (!entry) return null;
