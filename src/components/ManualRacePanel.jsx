@@ -76,7 +76,7 @@ function RunningScreen({
   onNextRunner, onAdjustCurrentLegStart,
   onUpdateLegPace, onEditLegTime,
   resetConfirm, onResetRace, onSetResetConfirm,
-  stravaConnections,
+  stravaConnections, teamTime,
 }) {
   const [fabOpen, setFabOpen] = useState(false);
   const currentLegIndex = calculatedLegs.findIndex(l => l.id === currentLeg);
@@ -84,6 +84,7 @@ function RunningScreen({
   const lastLegId = calculatedLegs[calculatedLegs.length - 1]?.id;
   const predictedFinishMs = legETAMap?.get(lastLegId)?.endMs;
   const predictedFinishStr = predictedFinishMs ? formatLocalTime(predictedFinishMs) : null;
+  const totalRaceTimeStr = teamTime ? formatTime(teamTime) : null;
 
   const closeFab = () => { setFabOpen(false); onSetResetConfirm(false); };
 
@@ -198,9 +199,17 @@ function RunningScreen({
                       style={{ width: "100%", padding: "14px 20px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, WebkitTapHighlightColor: "transparent", textAlign: "left" }}
                     >
                       <span style={{ fontSize: 18, width: 24, textAlign: "center", lineHeight: 1, flexShrink: 0 }}>🏁</span>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#9ca3af", fontFamily: FONT, lineHeight: 1.2 }}>Predicted Finish</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: 1.3 }}>{predictedFinishStr}</div>
+                      <div style={{ display: "flex", gap: 20, flex: 1 }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#9ca3af", fontFamily: FONT, lineHeight: 1.2 }}>Predicted Finish</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: 1.3 }}>{predictedFinishStr}</div>
+                        </div>
+                        {totalRaceTimeStr && (
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#9ca3af", fontFamily: FONT, lineHeight: 1.2 }}>Total Time</div>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: 1.3 }}>{totalRaceTimeStr}</div>
+                          </div>
+                        )}
                       </div>
                     </button>
                     <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
@@ -409,6 +418,7 @@ export function ManualRacePanel({
         onResetRace={onResetRace}
         onSetResetConfirm={onSetResetConfirm}
         stravaConnections={stravaConnections}
+        teamTime={teamTime}
       />
     );
   }
