@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { formatTime, paceToDisplay } from "../utils";
+import { formatTime, paceToDisplay, formatLocalTime } from "../utils";
 import { LegCarousel } from "./LegCarousel";
 
 const AMBER = "#F59E0B";
@@ -79,6 +79,10 @@ function RunningScreen({
 }) {
   const [fabOpen, setFabOpen] = useState(false);
   const currentLegIndex = calculatedLegs.findIndex(l => l.id === currentLeg);
+
+  const lastLegId = calculatedLegs[calculatedLegs.length - 1]?.id;
+  const predictedFinishMs = legETAMap?.get(lastLegId)?.endMs;
+  const predictedFinishStr = predictedFinishMs ? formatLocalTime(predictedFinishMs) : null;
 
   const closeFab = () => { setFabOpen(false); onSetResetConfirm(false); };
 
@@ -185,6 +189,21 @@ function RunningScreen({
                   color={RED}
                 />
                 <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
+                {predictedFinishStr && (
+                  <>
+                    <button
+                      onClick={() => { navigator.clipboard?.writeText(predictedFinishStr).catch(() => {}); closeFab(); }}
+                      style={{ width: "100%", padding: "14px 20px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, WebkitTapHighlightColor: "transparent", textAlign: "left" }}
+                    >
+                      <span style={{ fontSize: 18, width: 24, textAlign: "center", lineHeight: 1, flexShrink: 0 }}>🏁</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#9ca3af", fontFamily: FONT, lineHeight: 1.2 }}>Predicted Finish</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: 1.3 }}>{predictedFinishStr}</div>
+                      </div>
+                    </button>
+                    <div style={{ height: 1, background: "#f1f5f9", margin: "0 16px" }} />
+                  </>
+                )}
                 <FabMenuItem icon="✕" label="Close menu" onClick={closeFab} muted />
               </>
             )}
