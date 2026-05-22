@@ -241,7 +241,7 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 2, minWidth: 0 }}>
-              {profilePicUrl && (
+              {profilePicUrl && !(isCenter && isCompleted) && (
                 <img src={profilePicUrl} alt="" style={{ width: isCenter ? 32 : 26, height: isCenter ? 32 : 26, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: isCompleted ? "1.5px solid #86efac" : "1px solid rgba(0,0,0,0.10)" }} />
               )}
               <div style={{ fontSize: isCenter ? "clamp(20px, 6vw, 28px)" : "clamp(14px, 4.5vw, 17px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -336,7 +336,7 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
         <>
           <div style={{ textAlign: "center", marginTop: 12, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
             {profilePicUrl && (
-              <img src={profilePicUrl} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "2px solid #86efac", boxShadow: "0 2px 10px rgba(34,197,94,0.25)", marginBottom: 8 }} />
+              <img src={profilePicUrl} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: "2.5px solid #86efac", boxShadow: "0 2px 14px rgba(34,197,94,0.3)", marginBottom: 10 }} />
             )}
             <div style={{ fontSize: 48, fontWeight: 900, color: "#14532d", fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1 }}>
               {formatTime(Math.round(result.elapsedSeconds))}
@@ -344,7 +344,6 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
             <div style={{ fontSize: 15, color: "#16a34a", marginTop: 6 }}>
               {paceToDisplay(result.elapsedSeconds, result.distance)}/mi
             </div>
-            <SourceBadge source={result.source} />
           </div>
           <button
             type="button"
