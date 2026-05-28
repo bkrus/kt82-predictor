@@ -220,13 +220,13 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
           </div>
           {isCenter && isCurrent && !isCompleted ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
                 {profilePicUrl ? (
-                  <img src={profilePicUrl} alt="" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "2.5px solid rgba(255,255,255,0.45)", boxShadow: "0 2px 12px rgba(0,0,0,0.35)" }} />
+                  <img src={profilePicUrl} alt="" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2.5px solid rgba(255,255,255,0.45)", boxShadow: "0 2px 12px rgba(0,0,0,0.35)" }} />
                 ) : (
-                  <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>🏃</span>
+                  <span style={{ fontSize: 28, lineHeight: 1 }}>🏃</span>
                 )}
-                <div style={{ fontSize: "clamp(18px, 5.5vw, 26px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: "clamp(18px, 5.5vw, 26px)", fontWeight: 800, color: textPrimary, fontFamily: FONT, lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>
                   {runner?.name ?? "—"}
                 </div>
               </div>
