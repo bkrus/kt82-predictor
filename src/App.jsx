@@ -686,9 +686,9 @@ export default function App() {
                           ) : (
                             <a
                               href={`/api/strava/auth?runnerId=${r.id}`}
-                              style={{ fontSize: 12, color: "#FC5200", textDecoration: "underline", cursor: "pointer" }}
+                              style={{ fontSize: 11, fontWeight: 600, color: "#c2410c", background: "rgba(252,76,2,0.07)", border: "1px solid rgba(252,76,2,0.2)", borderRadius: 999, padding: "2px 8px", cursor: "pointer" }}
                             >
-                              Connect with Strava
+                              Connect Strava
                             </a>
                           )}
                         </div>
