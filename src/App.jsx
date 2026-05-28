@@ -665,28 +665,28 @@ export default function App() {
                         {!r.name.trim() && <span style={S.fieldError}>Name cannot be blank</span>}
                         <div style={{ marginTop: 5 }}>
                           {stravaConnections[r.id] ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <img
-                                src={stravaConnections[r.id].strava_profile_pic_url}
-                                alt=""
-                                style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }}
-                              />
-                              <div>
-                                <div style={{ fontSize: 12, color: "#64748b" }}>Connected to Strava</div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleStravaDisconnect(r.id, stravaConnections[r.id].runner_name)}
-                                  disabled={stravaDisconnecting.has(r.id)}
-                                  style={{ fontSize: 11, color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                                >
-                                  {stravaDisconnecting.has(r.id) ? "…" : "Disconnect"}
-                                </button>
-                              </div>
-                            </div>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#166534", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.22)", borderRadius: 999, padding: "2px 4px 2px 5px" }}>
+                              {stravaConnections[r.id].strava_profile_pic_url
+                                ? <img src={stravaConnections[r.id].strava_profile_pic_url} alt="" style={{ width: 14, height: 14, borderRadius: "50%", objectFit: "cover" }} />
+                                : <span style={{ fontSize: 9, color: "#22c55e" }}>●</span>
+                              }
+                              <span>{stravaConnections[r.id].runner_name}</span>
+                              <button
+                                type="button"
+                                className="kt82-strava-disconnect"
+                                onClick={() => handleStravaDisconnect(r.id, stravaConnections[r.id].runner_name)}
+                                disabled={stravaDisconnecting.has(r.id)}
+                                title="Disconnect Strava"
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", fontSize: 13, lineHeight: 1, padding: "0 3px", borderRadius: 3 }}
+                              >
+                                {stravaDisconnecting.has(r.id) ? "…" : "×"}
+                              </button>
+                            </span>
                           ) : (
                             <a
                               href={`/api/strava/auth?runnerId=${r.id}`}
-                              style={{ fontSize: 11, fontWeight: 600, color: "#c2410c", background: "rgba(252,76,2,0.07)", border: "1px solid rgba(252,76,2,0.2)", borderRadius: 999, padding: "2px 8px", cursor: "pointer" }}
+                              className="kt82-strava-connect"
+                              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#c2410c", background: "rgba(252,76,2,0.07)", border: "1px solid rgba(252,76,2,0.2)", borderRadius: 999, padding: "2px 8px", textDecoration: "none" }}
                             >
                               Connect Strava
                             </a>
