@@ -122,7 +122,7 @@ function SourceBadge({ source }) {
       border: `1px solid ${isStrava ? "#86efac" : "#d1d5db"}`,
       borderRadius: 6, padding: "1px 6px", marginTop: 3,
     }}>
-      {isStrava ? "✓ Strava" : "Manual"}
+      {isStrava ? "✓ Synced" : "Manual"}
     </span>
   );
 }

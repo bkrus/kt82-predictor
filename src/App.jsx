@@ -133,7 +133,7 @@ export default function App() {
   }, []);
 
   const handleStravaDisconnect = useCallback(async (runnerId, athleteName) => {
-    if (!window.confirm(`Disconnect ${athleteName} from Strava?`)) return;
+    if (!window.confirm(`Disconnect ${athleteName}?`)) return;
     setStravaDisconnecting((prev) => new Set(prev).add(runnerId));
     try {
       const res = await fetch("/api/strava/disconnect", {
@@ -146,7 +146,7 @@ export default function App() {
         throw new Error(error || "Disconnect failed");
       }
       setStravaConnections((prev) => { const next = { ...prev }; delete next[runnerId]; return next; });
-      setStravaToast({ type: "success", message: `${athleteName} disconnected from Strava.` });
+      setStravaToast({ type: "success", message: `${athleteName} disconnected.` });
     } catch (err) {
       setStravaToast({ type: "error", message: `Could not disconnect: ${err.message}` });
     } finally {
@@ -175,13 +175,13 @@ export default function App() {
     const runnerParam = params.get("runner");
     const runnerName = runners.find((r) => r.id === runnerParam)?.name ?? runnerParam ?? "";
     if (status === "connected") {
-      setStravaToast({ type: "success", message: `Strava connected${runnerName ? ` for ${runnerName}` : ""}!` });
+      setStravaToast({ type: "success", message: `Connected${runnerName ? ` for ${runnerName}` : ""}!` });
       fetchStravaConnections();
     } else if (status === "denied") {
-      setStravaToast({ type: "warning", message: "Strava connection was cancelled." });
+      setStravaToast({ type: "warning", message: "Connection was cancelled." });
     } else {
       const reason = params.get("reason");
-      setStravaToast({ type: "error", message: `Strava connection failed${reason ? ` (${reason})` : ""}. Please try again.` });
+      setStravaToast({ type: "error", message: `Connection failed${reason ? ` (${reason})` : ""}. Please try again.` });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -676,7 +676,7 @@ export default function App() {
                                 className="kt82-strava-disconnect"
                                 onClick={() => handleStravaDisconnect(r.id, stravaConnections[r.id].runner_name)}
                                 disabled={stravaDisconnecting.has(r.id)}
-                                title="Disconnect Strava"
+                                title="Disconnect"
                                 style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", fontSize: 13, lineHeight: 1, padding: "0 3px", borderRadius: 3 }}
                               >
                                 {stravaDisconnecting.has(r.id) ? "…" : "×"}
@@ -688,7 +688,7 @@ export default function App() {
                               className="kt82-strava-connect"
                               style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#c2410c", background: "rgba(252,76,2,0.07)", border: "1px solid rgba(252,76,2,0.2)", borderRadius: 999, padding: "2px 8px", textDecoration: "none" }}
                             >
-                              Connect Strava
+                              Connect
                             </a>
                           )}
                         </div>
