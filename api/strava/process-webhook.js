@@ -34,7 +34,7 @@ export async function processWebhook(webhookEventId) {
 
   const { data: plan, error: planError } = await supabase
     .from("team_plan")
-    .select("race_status, current_leg, race_started_at, legs, leg_results")
+    .select("race_status, current_leg, race_started_at, legs, leg_results, runners")
     .eq("id", "default")
     .single();
 
@@ -116,9 +116,15 @@ export async function processWebhook(webhookEventId) {
   const endTime    = activity.activity_end_date_local   || activity.activity_end_date;
   const now        = new Date().toISOString();
 
+  const runnerConfig  = (plan.runners ?? []).find((r) => r.id === runnerId);
+  const runnerName    = runnerConfig?.name ?? "Unknown";
+  const runnerStravaId = event.owner_id ? String(event.owner_id) : null;
+
   const legResult = {
     legId:            currentLegData.id,
     runnerId:         currentLegData.runnerId,
+    runnerName,
+    runnerStravaId,
     startTime:        startTime ? new Date(startTime).getTime() : null,
     endTime:          endTime   ? new Date(endTime).getTime()   : null,
     elapsedSeconds:   activity.elapsed_time_s,
@@ -131,17 +137,11 @@ export async function processWebhook(webhookEventId) {
   const updatedLegResults = [...(plan.leg_results ?? []), legResult];
   const newCurrentLeg     = plan.current_leg + 1;
 
-  // Derive the completed leg's end timestamp. Strava activities rarely include
-  // an explicit end_date, so fall back to start + elapsed when endTime is null.
-  const completedLegEndTime = legResult.endTime
-    ?? (legResult.startTime != null ? legResult.startTime + legResult.elapsedSeconds * 1000 : null);
-
   const { error: planUpdateError } = await supabase
     .from("team_plan")
     .update({
-      current_leg:            newCurrentLeg,
-      leg_results:            updatedLegResults,
-      current_leg_start_time: completedLegEndTime ? new Date(completedLegEndTime).toISOString() : now,
+      current_leg:  newCurrentLeg,
+      leg_results:  updatedLegResults,
     })
     .eq("id", "default");
 
@@ -153,8 +153,9 @@ export async function processWebhook(webhookEventId) {
     .from("manual_entries")
     .upsert({
       team_plan_id:        "default",
-      leg_number:          match.legId,
-      runner_id:           runnerId,
+      leg_id:              match.legId,
+      runner_strava_id:    runnerStravaId,
+      runner_name:         runnerName,
       source:              "strava",
       strava_activity_id:  String(stravaActivityId),
       elapsed_time_s:      activity.elapsed_time_s,
@@ -163,7 +164,7 @@ export async function processWebhook(webhookEventId) {
       start_time:          startTime ?? null,
       end_time:            endTime   ?? null,
       completed_at:        now,
-    }, { onConflict: "team_plan_id,leg_number" });
+    }, { onConflict: "team_plan_id,leg_id" });
 
   if (entryError) {
     console.error(`[process-webhook] manual_entries upsert failed:`, entryError.message);
