@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
+import { ExternalLink } from "lucide-react";
 import { paceToDisplay, formatTime, formatManualCountdown, formatLocalTime, normalizePaceInput, validatePace } from "../utils";
 import { PaceInput } from "./PaceInput";
 import { LegEditModal } from "./LegEditModal";
@@ -110,6 +111,42 @@ function EditBtn({ label, onClick }) {
   );
 }
 
+// ─── Strava activity deep-link icon ──────────────────────────────────────────
+
+function StravaActivityLink({ stravaActivityId, topOffset = 8 }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type="button"
+      title="View on Strava"
+      onClick={(e) => {
+        e.stopPropagation();
+        window.open(`https://www.strava.com/activities/${stravaActivityId}`, "_blank", "noopener,noreferrer");
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "absolute",
+        top: topOffset,
+        right: 8,
+        background: hovered ? "rgba(252,100,0,0.2)" : "rgba(252,100,0,0.10)",
+        border: `1px solid ${hovered ? "rgba(252,100,0,0.4)" : "rgba(252,100,0,0.2)"}`,
+        borderRadius: 6,
+        padding: "3px 5px",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#fc6400",
+        transition: "background 0.15s, border-color 0.15s",
+        lineHeight: 0,
+      }}
+    >
+      <ExternalLink size={11} strokeWidth={2.5} />
+    </button>
+  );
+}
+
 // ─── Source badge ─────────────────────────────────────────────────────────────
 
 function SourceBadge({ source }) {
@@ -202,6 +239,14 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
         <div style={{ position: "absolute", top: 8, right: 8, background: "#2563eb", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4, fontFamily: FONT, letterSpacing: "0.02em", pointerEvents: "none" }}>
           ⚡ Fastest
         </div>
+      )}
+
+      {/* ── Strava activity link ── */}
+      {isCompleted && result?.stravaActivityId && (
+        <StravaActivityLink
+          stravaActivityId={result.stravaActivityId}
+          topOffset={result?.legId === fastestLegId ? 36 : 8}
+        />
       )}
 
       {/* ── Top row: leg meta + right stat ── */}
