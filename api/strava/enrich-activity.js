@@ -94,34 +94,24 @@ export async function enrichActivity(strava_activity_id, runner_id) {
   const endLng   = activity.end_latlng?.[1] ?? null;
 
   const activityStartDate = activity.start_date ?? null;
-  const activityStartDateLocal = activity.start_date_local ?? null;
-  const activityEndDate = activityStartDate
-    ? new Date(new Date(activityStartDate).getTime() + elapsedSec * 1000).toISOString()
-    : null;
-  const activityEndDateLocal = activityStartDateLocal
-    ? new Date(new Date(activityStartDateLocal).getTime() + elapsedSec * 1000).toISOString()
-    : null;
 
   const record = {
-    strava_activity_id:        String(strava_activity_id),
-    runner_strava_id:          String(activity.athlete?.id ?? tokenData.runner_strava_id),
-    distance_m:                distanceM,
-    elapsed_time_s:            elapsedSec,
-    moving_time_s:             movingSec,
-    pace_min_per_mi:           paceMinPerMi,
-    start_lat:                 startLat,
-    start_lng:                 startLng,
-    end_lat:                   endLat,
-    end_lng:                   endLng,
-    activity_name:             activity.name ?? null,
-    activity_type:             activity.type ?? activity.sport_type ?? null,
-    strava_url:                `https://www.strava.com/activities/${strava_activity_id}`,
-    polyline:                  activity.map?.summary_polyline ?? null,
-    activity_start_date:       activityStartDate,
-    activity_start_date_local: activityStartDateLocal,
-    activity_end_date:         activityEndDate,
-    activity_end_date_local:   activityEndDateLocal,
-    synced_at:                 new Date().toISOString(),
+    strava_activity_id: String(strava_activity_id),
+    runner_strava_id:   String(activity.athlete?.id ?? tokenData.runner_strava_id),
+    distance_m:         distanceM,
+    elapsed_time_s:     elapsedSec,
+    moving_time_s:      movingSec,
+    pace_min_per_mi:    paceMinPerMi,
+    start_lat:          startLat,
+    start_lng:          startLng,
+    end_lat:            endLat,
+    end_lng:            endLng,
+    activity_name:      activity.name ?? null,
+    activity_type:      activity.type ?? activity.sport_type ?? null,
+    strava_url:         `https://www.strava.com/activities/${strava_activity_id}`,
+    polyline:           activity.map?.summary_polyline ?? null,
+    activity_start_date: activityStartDate,
+    synced_at:          new Date().toISOString(),
   };
 
   const { data: stored, error: upsertError } = await supabase
