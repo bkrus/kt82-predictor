@@ -62,7 +62,7 @@ export async function processWebhook(webhookEventId) {
   // ── Enrich activity ───────────────────────────────────────────────────
 
   console.log(`[process-webhook] Enriching activity ${stravaActivityId} for runner ${runnerId}`);
-  const enrichResult = await enrichActivity(stravaActivityId, runnerId);
+  const enrichResult = await enrichActivity(stravaActivityId, runnerId, currentLegData.id);
 
   if (enrichResult.error || !enrichResult.data) {
     console.error(`[process-webhook] Enrich failed:`, enrichResult.error);

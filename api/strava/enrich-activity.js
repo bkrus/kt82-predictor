@@ -57,7 +57,7 @@ async function getValidToken(runnerId) {
   return { access_token: refreshed.access_token, runner_strava_id: data.runner_strava_id };
 }
 
-export async function enrichActivity(strava_activity_id, runner_id) {
+export async function enrichActivity(strava_activity_id, runner_id, currentLeg) {
   let tokenData;
   try {
     tokenData = await getValidToken(runner_id);
@@ -112,6 +112,7 @@ export async function enrichActivity(strava_activity_id, runner_id) {
     polyline:           activity.map?.summary_polyline ?? null,
     activity_start_date: activityStartDate,
     synced_at:          new Date().toISOString(),
+    leg_id:             currentLeg,
   };
 
   const { data: stored, error: upsertError } = await supabase
