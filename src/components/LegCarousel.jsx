@@ -111,54 +111,37 @@ function EditBtn({ label, onClick }) {
   );
 }
 
-// ─── Strava activity deep-link icon ──────────────────────────────────────────
-
-function StravaActivityLink({ stravaActivityId, topOffset = 8 }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      type="button"
-      title="View on Strava"
-      onClick={(e) => {
-        e.stopPropagation();
-        window.open(`https://www.strava.com/activities/${stravaActivityId}`, "_blank", "noopener,noreferrer");
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        position: "absolute",
-        top: topOffset,
-        right: 8,
-        background: hovered ? "rgba(252,100,0,0.2)" : "rgba(252,100,0,0.10)",
-        border: `1px solid ${hovered ? "rgba(252,100,0,0.4)" : "rgba(252,100,0,0.2)"}`,
-        borderRadius: 6,
-        padding: "3px 5px",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#fc6400",
-        transition: "background 0.15s, border-color 0.15s",
-        lineHeight: 0,
-      }}
-    >
-      <ExternalLink size={11} strokeWidth={2.5} />
-    </button>
-  );
-}
-
 // ─── Source badge ─────────────────────────────────────────────────────────────
 
-function SourceBadge({ source }) {
+function SourceBadge({ source, stravaActivityId }) {
   const isStrava = source === "strava";
+  const baseStyle = {
+    display: "inline-flex", alignItems: "center", gap: 3,
+    fontSize: 10, fontWeight: 700,
+    color: isStrava ? "#16a34a" : "#6b7280",
+    background: isStrava ? "#f0fdf4" : "#f3f4f6",
+    border: `1px solid ${isStrava ? "#86efac" : "#d1d5db"}`,
+    borderRadius: 6, padding: "2px 6px", marginTop: 3,
+  };
+
+  if (isStrava && stravaActivityId) {
+    return (
+      <button
+        type="button"
+        title="View on Strava"
+        onClick={(e) => {
+          e.stopPropagation();
+          window.open(`https://www.strava.com/activities/${stravaActivityId}`, "_blank", "noopener,noreferrer");
+        }}
+        style={{ ...baseStyle, cursor: "pointer" }}
+      >
+        ✓ Synced <ExternalLink size={9} strokeWidth={2.5} />
+      </button>
+    );
+  }
+
   return (
-    <span style={{
-      display: "inline-block", fontSize: 10, fontWeight: 700,
-      color: isStrava ? "#16a34a" : "#6b7280",
-      background: isStrava ? "#f0fdf4" : "#f3f4f6",
-      border: `1px solid ${isStrava ? "#86efac" : "#d1d5db"}`,
-      borderRadius: 6, padding: "1px 6px", marginTop: 3,
-    }}>
+    <span style={baseStyle}>
       {isStrava ? "✓ Synced" : "Manual"}
     </span>
   );
@@ -241,14 +224,6 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
         </div>
       )}
 
-      {/* ── Strava activity link ── */}
-      {isCompleted && result?.stravaActivityId && (
-        <StravaActivityLink
-          stravaActivityId={result.stravaActivityId}
-          topOffset={result?.legId === fastestLegId ? 36 : 8}
-        />
-      )}
-
       {/* ── Top row: leg meta + right stat ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
@@ -308,7 +283,7 @@ function LegCard({ item, slot, slotData, cardHeight, runnerMap, legETAMap, onNex
               <div style={{ fontSize: 12, color: textMuted, marginTop: 1 }}>
                 {paceToDisplay(result.elapsedSeconds, result.distance)}/mi
               </div>
-              <SourceBadge source={result.source} />
+              <SourceBadge source={result.source} stravaActivityId={result.stravaActivityId} />
             </>
           ) : !isCenter ? (
             <>
