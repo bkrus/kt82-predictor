@@ -28,6 +28,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    if (aspect_type !== "create") {
+      console.log(`[webhook] Ignoring ${object_type}:${aspect_type} for activity ${object_id}`);
+      return res.status(200).json({ ignored: true });
+    }
+
     const { data: plan, error: planError } = await supabase
       .from("team_plan")
       .select("race_status, current_leg, race_started_at, legs")
