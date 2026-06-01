@@ -112,21 +112,25 @@ export async function processWebhook(webhookEventId) {
   console.log(`[process-webhook] Auto-advancing leg ${plan.current_leg} (confidence: ${match.confidence.toFixed(3)})`);
 
   const distanceMi = (activity.distance_m ?? 0) / 1609.344;
-  const startTime  = activity.activity_start_date_local || activity.activity_start_date;
-  const endTime    = activity.activity_end_date_local   || activity.activity_end_date;
+  const rawStart   = activity.activity_start_date_local || activity.activity_start_date;
+  const rawEnd     = activity.activity_end_date_local   || activity.activity_end_date;
   const now        = new Date().toISOString();
 
-  const runnerConfig  = (plan.runners ?? []).find((r) => r.id === runnerId);
-  const runnerName    = runnerConfig?.name ?? "Unknown";
+  const runnerConfig   = (plan.runners ?? []).find((r) => r.id === runnerId);
+  const runnerName     = runnerConfig?.name ?? "Unknown";
   const runnerStravaId = event.owner_id ? String(event.owner_id) : null;
+
+  const startMs = rawStart ? new Date(rawStart).getTime() : null;
+  const endMs   = rawEnd   ? new Date(rawEnd).getTime()
+                           : (startMs != null ? startMs + activity.elapsed_time_s * 1000 : null);
 
   const legResult = {
     legId:            currentLegData.id,
     runnerId:         currentLegData.runnerId,
     runnerName,
     runnerStravaId,
-    startTime:        startTime ? new Date(startTime).getTime() : null,
-    endTime:          endTime   ? new Date(endTime).getTime()   : null,
+    startTime:        startMs,
+    endTime:          endMs,
     elapsedSeconds:   activity.elapsed_time_s,
     actualPace:       activity.pace_min_per_mi,
     distance:         distanceMi,

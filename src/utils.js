@@ -99,8 +99,10 @@ export function computeLegETAs(calcLegs, legResults, raceStartedAt) {
   for (const leg of calcLegs) {
     const result = legResults.find((r) => r.legId === leg.id);
     if (result) {
-      map.set(leg.id, { startMs: result.startTime, endMs: result.endTime, actual: true });
-      cursor = result.endTime;
+      const endMs = result.endTime
+        ?? (result.startTime != null ? result.startTime + result.elapsedSeconds * 1000 : cursor);
+      map.set(leg.id, { startMs: result.startTime, endMs, actual: true });
+      cursor = endMs;
     } else {
       const endMs = cursor + leg.time * 1000;
       map.set(leg.id, { startMs: cursor, endMs, actual: false });

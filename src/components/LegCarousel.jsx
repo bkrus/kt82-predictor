@@ -442,6 +442,10 @@ export function LegCarousel({
     }
   }, [calculatedLegs.length, focusedIdx]);
 
+  useEffect(() => {
+    if (currentLegIndex >= 0) setFocusedIdx(currentLegIndex);
+  }, [currentLegIndex]);
+
   const fastestLegId = useMemo(() => {
     if (completedLegs.length === 0) return null;
     return completedLegs.reduce((min, leg) => leg.actualPace < min.actualPace ? leg : min).legId;
