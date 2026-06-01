@@ -44,6 +44,7 @@ export default function App() {
   const [manualRaceEndedAt, setManualRaceEndedAt] = useState(null);
   const [manualCurrentLeg, setManualCurrentLeg] = useState(1);
   const [manualLegResults, setManualLegResults] = useState([]);
+  const [manualCurrentLegStartTime, setManualCurrentLegStartTime] = useState(null);
   const [manualResetConfirm, setManualResetConfirm] = useState(false);
   const [manualExchangeScreen, setManualExchangeScreen] = useState(null); // { legNum, runnerName, distance, elapsedSeconds, diff, isLast }
   const [legEditModal, setLegEditModal] = useState(null); // { resultIndex, legId, legName, distance, startMs, endMs, startOnly? }
@@ -82,6 +83,7 @@ export default function App() {
         if (data.race_ended_at) setManualRaceEndedAt(new Date(data.race_ended_at).getTime());
         if (data.current_leg != null) setManualCurrentLeg(data.current_leg);
         if (Array.isArray(data.leg_results)) setManualLegResults(data.leg_results);
+        if (data.current_leg_start_time) setManualCurrentLegStartTime(new Date(data.current_leg_start_time).getTime());
       }
     };
     load();
@@ -126,6 +128,7 @@ export default function App() {
           if (d.race_ended_at !== undefined) setManualRaceEndedAt(d.race_ended_at ? new Date(d.race_ended_at).getTime() : null);
           if (d.current_leg != null) setManualCurrentLeg(d.current_leg);
           if (Array.isArray(d.leg_results)) setManualLegResults(d.leg_results);
+          if (d.current_leg_start_time !== undefined) setManualCurrentLegStartTime(d.current_leg_start_time ? new Date(d.current_leg_start_time).getTime() : null);
         }
       })
       .subscribe();
@@ -236,9 +239,10 @@ export default function App() {
   const fastestRunnerId = runnerTotals.find((r) => r.averagePaceSeconds === fastestAveragePace)?.id;
   const totalLegDistance = calculatedLegs.reduce((s, l) => s + l.distance, 0).toFixed(1);
 
-  const manualLegStart = manualLegResults.length > 0
-    ? manualLegResults[manualLegResults.length - 1].endTime
-    : manualRaceStartedAt;
+  const manualLegStart = manualCurrentLegStartTime
+    ?? (manualLegResults.length > 0
+      ? manualLegResults[manualLegResults.length - 1].endTime
+      : manualRaceStartedAt);
 
   const manualLegETAMap = useMemo(
     () => computeLegETAs(calculatedLegs, manualLegResults, manualRaceStartedAt),

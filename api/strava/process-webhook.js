@@ -131,11 +131,17 @@ export async function processWebhook(webhookEventId) {
   const updatedLegResults = [...(plan.leg_results ?? []), legResult];
   const newCurrentLeg     = plan.current_leg + 1;
 
+  // Derive the completed leg's end timestamp. Strava activities rarely include
+  // an explicit end_date, so fall back to start + elapsed when endTime is null.
+  const completedLegEndTime = legResult.endTime
+    ?? (legResult.startTime != null ? legResult.startTime + legResult.elapsedSeconds * 1000 : null);
+
   const { error: planUpdateError } = await supabase
     .from("team_plan")
     .update({
-      current_leg:  newCurrentLeg,
-      leg_results:  updatedLegResults,
+      current_leg:            newCurrentLeg,
+      leg_results:            updatedLegResults,
+      current_leg_start_time: completedLegEndTime ? new Date(completedLegEndTime).toISOString() : now,
     })
     .eq("id", "default");
 
