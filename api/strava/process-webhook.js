@@ -90,7 +90,7 @@ export async function processWebhook(webhookEventId) {
     return { matched: false };
   }
 
-  if (match.confidence < 0.85) {
+  if (match.confidence < 0.80) {
     console.log(`[process-webhook] Needs confirmation (confidence: ${match.confidence.toFixed(3)})`);
     await supabase
       .from("webhook_events")
