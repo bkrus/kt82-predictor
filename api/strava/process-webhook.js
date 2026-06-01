@@ -138,6 +138,8 @@ export async function processWebhook(webhookEventId) {
     stravaActivityId: String(stravaActivityId),
   };
 
+  console.log("[process-webhook] Writing legResult:", legResult);
+
   const updatedLegResults = [...(plan.leg_results ?? []), legResult];
   const newCurrentLeg     = plan.current_leg + 1;
 
@@ -165,8 +167,8 @@ export async function processWebhook(webhookEventId) {
       elapsed_time_s:      activity.elapsed_time_s,
       distance_mi:         distanceMi,
       pace_min_per_mi:     activity.pace_min_per_mi,
-      start_time:          startTime ?? null,
-      end_time:            endTime   ?? null,
+      start_time:          startMs != null ? new Date(startMs).toISOString() : null,
+      end_time:            endMs   != null ? new Date(endMs).toISOString()   : null,
       completed_at:        now,
     }, { onConflict: "team_plan_id,leg_id" });
 
