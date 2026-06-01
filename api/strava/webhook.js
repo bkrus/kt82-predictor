@@ -87,11 +87,29 @@ export default async function handler(req, res) {
 
     if (insertError) {
       console.error("Failed to store webhook event:", insertError);
-    } else {
-      console.log(`✓ Webhook stored with ID: ${inserted.id}`);
-      processWebhook(inserted.id)
-        .then(result => console.log("✓ Webhook processed:", result))
-        .catch(err => console.error("✗ Webhook processing failed:", err));
+      return res.status(200).json({ ok: true });
+    }
+
+    const eventId = inserted.id;
+    console.log(`✓ Webhook stored with ID: ${eventId}`);
+
+    // CRITICAL: Await processing before returning response.
+    // Vercel terminates the function as soon as res.end() is called,
+    // so fire-and-forget async tasks don't work.
+    try {
+      const result = await processWebhook(eventId);
+      console.log("✓ Webhook processed:", result);
+    } catch (err) {
+      console.error("✗ Webhook processing failed:", err);
+      // Mark event as error so we can debug and retry later
+      await supabase
+        .from("webhook_events")
+        .update({
+          status: "error",
+          error_message: err.message,
+          processed_at: new Date().toISOString()
+        })
+        .eq("id", eventId);
     }
 
     return res.status(200).json({ ok: true });
