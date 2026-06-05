@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { formatTime, paceToDisplay, formatLocalTime } from "../utils";
 import { LegCarousel } from "./LegCarousel";
+import { PostRaceReport } from "./PostRaceReport";
 
 const AMBER = "#F59E0B";
 const GREEN = "#10B981";
@@ -272,6 +273,7 @@ function FinishScreen({
   legResults, calculatedLegs, runnerMap,
   onSetLegEditModal,
   resetConfirm, onResetRace, onSetResetConfirm,
+  onShowReport,
 }) {
   return (
     <div style={{ padding: "32px 20px 32px" }}>
@@ -336,7 +338,16 @@ function FinishScreen({
         })}
       </div>
 
-      <div style={{ marginTop: 28, textAlign: "center" }}>
+      <div style={{ marginTop: 20, textAlign: "center" }}>
+        <button
+          onClick={onShowReport}
+          style={{ width: "100%", padding: "14px 0", background: "#009DE0", color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 12 }}
+        >
+          View Race Report
+        </button>
+      </div>
+
+      <div style={{ textAlign: "center" }}>
         {resetConfirm ? (
           <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>Reset race? All data will be lost.</span>
@@ -387,7 +398,15 @@ export function ManualRacePanel({
   onEditLegTime,
   stravaConnections,
   onSetMode,
+  raceStartedAt,
+  raceEndedAt,
 }) {
+  const [showReport, setShowReport] = useState(false);
+
+  useEffect(() => {
+    if (status === "completed") setShowReport(true);
+  }, [status]);
+
   useEffect(() => {
     if (!exchangeScreen) return;
     const t = setTimeout(onClearExchange, 3000);
@@ -435,20 +454,38 @@ export function ManualRacePanel({
 
   if (status === "completed") {
     return (
-      <FinishScreen
-        elapsedDisplay={elapsedDisplay}
-        fastestLeg={fastestLeg}
-        slowestLeg={slowestLeg}
-        totalElapsedSec={totalElapsedSec}
-        totalDist={totalDist}
-        legResults={legResults}
-        calculatedLegs={calculatedLegs}
-        runnerMap={runnerMap}
-        onSetLegEditModal={onSetLegEditModal}
-        resetConfirm={resetConfirm}
-        onResetRace={onResetRace}
-        onSetResetConfirm={onSetResetConfirm}
-      />
+      <>
+        <FinishScreen
+          elapsedDisplay={elapsedDisplay}
+          fastestLeg={fastestLeg}
+          slowestLeg={slowestLeg}
+          totalElapsedSec={totalElapsedSec}
+          totalDist={totalDist}
+          legResults={legResults}
+          calculatedLegs={calculatedLegs}
+          runnerMap={runnerMap}
+          onSetLegEditModal={onSetLegEditModal}
+          resetConfirm={resetConfirm}
+          onResetRace={onResetRace}
+          onSetResetConfirm={onSetResetConfirm}
+          onShowReport={() => setShowReport(true)}
+        />
+        {showReport && (
+          <PostRaceReport
+            teamTime={teamTime}
+            totalElapsedSec={totalElapsedSec}
+            totalDist={totalDist}
+            fastestLeg={fastestLeg}
+            slowestLeg={slowestLeg}
+            legResults={legResults}
+            calculatedLegs={calculatedLegs}
+            runnerMap={runnerMap}
+            raceStartedAt={raceStartedAt}
+            raceEndedAt={raceEndedAt}
+            onClose={() => setShowReport(false)}
+          />
+        )}
+      </>
     );
   }
 
