@@ -279,6 +279,9 @@ export default function App() {
   const manualSlowestLeg = manualLegResults.length > 0
     ? manualLegResults.reduce((w, r) => (!w || r.actualPace > w.actualPace) ? r : w, null)
     : null;
+  const manualLongestLeg = manualLegResults.length > 0
+    ? manualLegResults.reduce((b, r) => (!b || r.distance > b.distance) ? r : b, null)
+    : null;
   const manualTotalElapsedSec = manualLegResults.reduce((s, r) => s + r.elapsedSeconds, 0);
   const manualTotalDist = manualLegResults.reduce((s, r) => s + r.distance, 0);
 
@@ -604,6 +607,7 @@ export default function App() {
             elapsedDisplay={manualElapsedDisplay}
             fastestLeg={manualFastestLeg}
             slowestLeg={manualSlowestLeg}
+            longestLeg={manualLongestLeg}
             totalElapsedSec={manualTotalElapsedSec}
             totalDist={manualTotalDist}
             teamTime={teamTime}

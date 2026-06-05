@@ -11,6 +11,7 @@ export function PostRaceReport({
   totalDist,
   fastestLeg,
   slowestLeg,
+  longestLeg,
   legResults,
   calculatedLegs,
   runnerMap,
@@ -116,15 +117,15 @@ export function PostRaceReport({
               </div>
             )}
 
-            {slowestLeg && (
+            {longestLeg && (
               <div style={{ ...S.highlight, borderBottom: "none" }}>
                 <div style={{ ...S.icon, background: "rgba(248,113,113,0.12)" }}>🛡</div>
                 <div>
-                  <div style={S.hName}>{runnerMap[slowestLeg.runnerId]?.name} · Leg {slowestLeg.legId}</div>
-                  <div style={S.hSub}>Longest leg · {slowestLeg.distance?.toFixed(1)} mi</div>
+                  <div style={S.hName}>{runnerMap[longestLeg.runnerId]?.name} · Leg {longestLeg.legId}</div>
+                  <div style={S.hSub}>Most miles · {longestLeg.distance?.toFixed(1)} mi</div>
                 </div>
                 <div style={S.hRight}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#f87171" }}>{paceToDisplay(slowestLeg.elapsedSeconds, slowestLeg.distance)}/mi</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#f87171" }}>{paceToDisplay(longestLeg.elapsedSeconds, longestLeg.distance)}/mi</div>
                 </div>
               </div>
             )}
