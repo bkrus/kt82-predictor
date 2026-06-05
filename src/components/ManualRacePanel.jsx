@@ -383,6 +383,7 @@ export function ManualRacePanel({
   fastestLeg,
   slowestLeg,
   longestLeg,
+  mountainGoatLeg,
   totalElapsedSec,
   totalDist,
   teamTime,
@@ -479,6 +480,7 @@ export function ManualRacePanel({
             fastestLeg={fastestLeg}
             slowestLeg={slowestLeg}
             longestLeg={longestLeg}
+            mountainGoatLeg={mountainGoatLeg}
             legResults={legResults}
             calculatedLegs={calculatedLegs}
             runnerMap={runnerMap}

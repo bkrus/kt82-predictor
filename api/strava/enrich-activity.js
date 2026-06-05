@@ -84,6 +84,7 @@ export async function enrichActivity(strava_activity_id, runner_id, currentLeg) 
   const distanceM = activity.distance ?? 0;
   const elapsedSec = activity.elapsed_time ?? 0;
   const movingSec = activity.moving_time ?? 0;
+  const elevationGainFt = Math.round((activity.total_elevation_gain ?? 0) * 3.28084);
   const paceMinPerMi = distanceM > 0 && movingSec > 0
     ? (movingSec / 60) / (distanceM / 1609.344)
     : null;
@@ -126,6 +127,6 @@ export async function enrichActivity(strava_activity_id, runner_id, currentLeg) 
     return { error: upsertError.message };
   }
 
-  console.log(`[enrich-activity] ✓ Stored activity ${strava_activity_id} for runner ${runner_id} (${distanceM}m, ${elapsedSec}s)`);
-  return { data: stored };
+  console.log(`[enrich-activity] ✓ Stored activity ${strava_activity_id} for runner ${runner_id} (${distanceM}m, ${elapsedSec}s, ${elevationGainFt}ft gain)`);
+  return { data: stored, elevationGainFt };
 }

@@ -136,6 +136,7 @@ export async function processWebhook(webhookEventId) {
     distance:         distanceMi,
     source:           "strava",
     stravaActivityId: String(stravaActivityId),
+    elevationGainFt:  enrichResult.elevationGainFt ?? 0,
   };
 
   console.log("[process-webhook] Writing legResult:", legResult);

@@ -12,6 +12,7 @@ export function PostRaceReport({
   fastestLeg,
   slowestLeg,
   longestLeg,
+  mountainGoatLeg,
   legResults,
   calculatedLegs,
   runnerMap,
@@ -26,6 +27,8 @@ export function PostRaceReport({
   const startDate = raceStartedAt ? new Date(raceStartedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
   const startTime = raceStartedAt ? new Date(raceStartedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—";
   const endTime = raceEndedAt ? new Date(raceEndedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—";
+
+  const totalElevationFt = legResults.reduce((s, r) => s + (r.elevationGainFt ?? 0), 0);
 
   const predictions = legResults.map((res) => {
     const cl = calculatedLegs.find(l => l.id === res.legId);
@@ -97,6 +100,12 @@ export function PostRaceReport({
                 <div style={S.chipLabel}>Legs</div>
                 <div style={S.chipVal}>{legResults.length}</div>
               </div>
+              {totalElevationFt > 0 && (
+                <div style={S.chip}>
+                  <div style={S.chipLabel}>Elevation</div>
+                  <div style={S.chipVal}>{totalElevationFt.toLocaleString()} ft</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -131,11 +140,24 @@ export function PostRaceReport({
             )}
 
             {bestPred && (
-              <div style={{ ...S.highlight, borderBottom: "none" }}>
+              <div style={S.highlight}>
                 <div style={{ ...S.icon, background: "rgba(251,191,36,0.12)" }}>🎯</div>
                 <div>
                   <div style={S.hName}>Best prediction · Leg {bestPred.legId}</div>
                   <div style={S.hSub}>Off by {formatTime(Math.round(bestPred.accuracy))}</div>
+                </div>
+              </div>
+            )}
+
+            {mountainGoatLeg && (mountainGoatLeg.elevationGainFt ?? 0) > 0 && (
+              <div style={{ ...S.highlight, borderBottom: "none" }}>
+                <div style={{ ...S.icon, background: "rgba(34,197,94,0.12)" }}>🐐</div>
+                <div>
+                  <div style={S.hName}>{runnerMap[mountainGoatLeg.runnerId]?.name} · Leg {mountainGoatLeg.legId}</div>
+                  <div style={S.hSub}>Mountain Goat · most elevation</div>
+                </div>
+                <div style={S.hRight}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#22c55e" }}>+{mountainGoatLeg.elevationGainFt.toLocaleString()} ft</div>
                 </div>
               </div>
             )}

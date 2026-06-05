@@ -282,6 +282,9 @@ export default function App() {
   const manualLongestLeg = manualLegResults.length > 0
     ? manualLegResults.reduce((b, r) => (!b || r.distance > b.distance) ? r : b, null)
     : null;
+  const manualMountainGoatLeg = manualLegResults.length > 0
+    ? manualLegResults.reduce((b, r) => (!b || (r.elevationGainFt ?? 0) > (b.elevationGainFt ?? 0)) ? r : b, null)
+    : null;
   const manualTotalElapsedSec = manualLegResults.reduce((s, r) => s + r.elapsedSeconds, 0);
   const manualTotalDist = manualLegResults.reduce((s, r) => s + r.distance, 0);
 
@@ -408,6 +411,7 @@ export default function App() {
       actualPace: elapsedSeconds / 60 / calcLeg.distance,
       distance: calcLeg.distance,
       source: "manual",
+      elevationGainFt: 0,
     };
     const newResults = [...manualLegResults, result];
     const isLast = manualCurrentLeg === calculatedLegs.length;
@@ -608,6 +612,7 @@ export default function App() {
             fastestLeg={manualFastestLeg}
             slowestLeg={manualSlowestLeg}
             longestLeg={manualLongestLeg}
+            mountainGoatLeg={manualMountainGoatLeg}
             totalElapsedSec={manualTotalElapsedSec}
             totalDist={manualTotalDist}
             teamTime={teamTime}
