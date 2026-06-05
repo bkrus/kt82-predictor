@@ -7,6 +7,10 @@ import {
   getCountdownUrgency, genId, formatLocalTime, paceToDisplay, computeLegETAs,
 } from "./utils";
 import { GLOBAL_CSS, S } from "./styles";
+import {
+  calcFastestLeg, calcSlowestLeg, calcLongestLeg, calcMountainGoatLeg,
+  calcTotalElapsedSec, calcTotalDist, applyLegEditCascade,
+} from "./reportCalcs";
 import { RatingBadge } from "./components/RatingBadge";
 import { PaceInput } from "./components/PaceInput";
 import { Chevron } from "./components/Chevron";
@@ -273,20 +277,12 @@ export default function App() {
 
   const manualProjectedFinishMs = manualLegETAMap.get(calculatedLegs[calculatedLegs.length - 1]?.id)?.endMs;
 
-  const manualFastestLeg = manualLegResults.length > 0
-    ? manualLegResults.reduce((b, r) => (!b || r.actualPace < b.actualPace) ? r : b, null)
-    : null;
-  const manualSlowestLeg = manualLegResults.length > 0
-    ? manualLegResults.reduce((w, r) => (!w || r.actualPace > w.actualPace) ? r : w, null)
-    : null;
-  const manualLongestLeg = manualLegResults.length > 0
-    ? manualLegResults.reduce((b, r) => (!b || r.distance > b.distance) ? r : b, null)
-    : null;
-  const manualMountainGoatLeg = manualLegResults.length > 0
-    ? manualLegResults.reduce((b, r) => (!b || (r.elevationGainFt ?? 0) > (b.elevationGainFt ?? 0)) ? r : b, null)
-    : null;
-  const manualTotalElapsedSec = manualLegResults.reduce((s, r) => s + r.elapsedSeconds, 0);
-  const manualTotalDist = manualLegResults.reduce((s, r) => s + r.distance, 0);
+  const manualFastestLeg      = calcFastestLeg(manualLegResults);
+  const manualSlowestLeg      = calcSlowestLeg(manualLegResults);
+  const manualLongestLeg      = calcLongestLeg(manualLegResults);
+  const manualMountainGoatLeg = calcMountainGoatLeg(manualLegResults);
+  const manualTotalElapsedSec = calcTotalElapsedSec(manualLegResults);
+  const manualTotalDist       = calcTotalDist(manualLegResults);
 
   const manualLegElapsedMs = manualRaceStatus === "in_progress" && manualLegStart
     ? currentTime.getTime() - manualLegStart : null;
@@ -474,30 +470,11 @@ export default function App() {
       setStravaToast({ type: "success", message: `Leg ${manualCurrentLeg} start time adjusted` });
       return;
     }
-    const updated = [...manualLegResults];
-    const r = updated[resultIndex];
+    const r = manualLegResults[resultIndex];
     if (!r) return;
-    const elapsed = Math.max(1, (newEndMs - newStartMs) / 1000);
-    const editedAt = new Date().toISOString();
-
-    // Backward cascade: if start time changed, sync previous leg's end to match
-    let cascadeFrom = resultIndex;
-    if (resultIndex > 0 && newStartMs !== r.startTime) {
-      const prev = updated[resultIndex - 1];
-      const prevElapsed = Math.max(1, (newStartMs - prev.startTime) / 1000);
-      updated[resultIndex - 1] = { ...prev, endTime: newStartMs, elapsedSeconds: prevElapsed, actualPace: prevElapsed / 60 / prev.distance, editedAt, runnerStravaId: prev.runnerStravaId || null, runnerName: prev.runnerName || "Unknown" };
-      cascadeFrom = resultIndex - 1;
-    }
-
-    updated[resultIndex] = { ...r, startTime: newStartMs, endTime: newEndMs, elapsedSeconds: elapsed, actualPace: elapsed / 60 / r.distance, editedAt, runnerStravaId: r.runnerStravaId || null, runnerName: r.runnerName || "Unknown" };
-
-    // Forward cascade: propagate end time changes into subsequent legs' start times
-    for (let i = resultIndex + 1; i < updated.length; i++) {
-      const prevEnd = updated[i - 1].endTime;
-      const cur = updated[i];
-      const e = Math.max(1, (cur.endTime - prevEnd) / 1000);
-      updated[i] = { ...cur, startTime: prevEnd, elapsedSeconds: e, actualPace: e / 60 / cur.distance, editedAt, runnerStravaId: cur.runnerStravaId || null, runnerName: cur.runnerName || "Unknown" };
-    }
+    const updated = applyLegEditCascade(manualLegResults, resultIndex, newStartMs, newEndMs);
+    const editedAt = updated[resultIndex].editedAt;
+    const cascadeFrom = (resultIndex > 0 && newStartMs !== r.startTime) ? resultIndex - 1 : resultIndex;
 
     const newRaceStart = (resultIndex === 0 && r.legId === 1) ? newStartMs : manualRaceStartedAt;
     setManualLegResults(updated);

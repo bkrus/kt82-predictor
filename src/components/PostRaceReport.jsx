@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { formatTime, paceToDisplay } from "../utils";
+import { calcTotalElevationFt, calcBestPrediction, shouldShowMountainGoat } from "../reportCalcs";
 
 const GO_BLUE = "#009DE0";
 const NAVY = "#0a1628";
@@ -28,13 +29,8 @@ export function PostRaceReport({
   const startTime = raceStartedAt ? new Date(raceStartedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—";
   const endTime = raceEndedAt ? new Date(raceEndedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—";
 
-  const totalElevationFt = legResults.reduce((s, r) => s + (r.elevationGainFt ?? 0), 0);
-
-  const predictions = legResults.map((res) => {
-    const cl = calculatedLegs.find(l => l.id === res.legId);
-    return { legId: res.legId, accuracy: Math.abs((cl?.time ?? 0) - res.elapsedSeconds) };
-  });
-  const bestPred = predictions.sort((a, b) => a.accuracy - b.accuracy)[0];
+  const totalElevationFt = calcTotalElevationFt(legResults);
+  const bestPred         = calcBestPrediction(legResults, calculatedLegs);
 
   const downloadAsImage = async () => {
     try {
@@ -149,7 +145,7 @@ export function PostRaceReport({
               </div>
             )}
 
-            {mountainGoatLeg && (mountainGoatLeg.elevationGainFt ?? 0) > 0 && (
+            {shouldShowMountainGoat(mountainGoatLeg) && (
               <div style={{ ...S.highlight, borderBottom: "none" }}>
                 <div style={{ ...S.icon, background: "rgba(34,197,94,0.12)" }}>🐐</div>
                 <div>
